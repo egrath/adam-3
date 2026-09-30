@@ -1,0 +1,9 @@
+# don't include our python venv
+env/
+
+# no object files, anywhere
+**/*.o
+
+# not the built binary
+**/build/adam-3
+
