@@ -5,7 +5,7 @@ LDFLAGS = -lSDL3
 SRCDIR  = .
 BLDDIR  = build
 
-OBJS    = $(addprefix $(BLDDIR)/, main.o adm3a.o)
+OBJS    = $(addprefix $(BLDDIR)/, main.o adm3a.o pty_unix.o)
 EXE     = $(BLDDIR)/adam
 
 $(EXE): $(OBJS)
