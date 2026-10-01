@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
+#include <sys/errno.h>
 
 #include <string.h>
 
@@ -162,10 +163,12 @@ int main (int argc, char **argv)
     struct termios termiosOri;
     struct winsize ws;
     pid_t childPid;
+    int childStatus;
     int masterFd;
     fd_set inFds;
     size_t numRead;
     char buffer[256];
+    bool finished = false;
 
     /* save for later use */
     tcgetattr (STDIN_FILENO, &termiosOri);
@@ -186,37 +189,39 @@ int main (int argc, char **argv)
         exit (1);
     }
 
+    fprintf (stdout, "my child process has the pid %d\n\r", childPid);
+
     /* only the parent gets here */
     enableRawMode ();
 
-    while (1)
+    /* make the PTY and stdin non blocking */
+    fcntl (masterFd, F_SETFL, O_NONBLOCK);
+    fcntl (STDIN_FILENO, F_SETFL, O_NONBLOCK);
+
+    while (!finished)
     {
-        FD_ZERO (&inFds);
-        FD_SET (STDIN_FILENO, &inFds);
-        FD_SET (masterFd, &inFds);
-
-        select (masterFd + 1, &inFds, NULL, NULL, NULL);
-        
-        if (FD_ISSET (STDIN_FILENO, &inFds))
+        /* check if the child has terminated */
+        if (waitpid (childPid, &childStatus, WNOHANG) == childPid)
         {
-            /* from our stdin (master) to the pty (slave) */
-            numRead = read (STDIN_FILENO, buffer, 256);
-            if (numRead <= 0)
-                exit (0);
-
-            write (masterFd, buffer, numRead);
+            fprintf (stdout, "\n\rchild died");
+            finished = true;
         }
 
-        if (FD_ISSET (masterFd, &inFds))
-        {
-            /* from pty (slave) to us */
-            numRead = read (masterFd, buffer, 256);
-            if (numRead <= 0)
-                exit (0);
-
+        /* check if we received any data from the slave */
+        numRead = read (masterFd, buffer, 256);
+        if (numRead > 0)
             write (STDOUT_FILENO, buffer, numRead);
-        }
+        else if (numRead < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
+            finished = true;
+
+        /* check if we received any data from our stdin to send to the child */
+        numRead = read (STDIN_FILENO, buffer, 256);
+        if (numRead > 0)
+            write (masterFd, buffer, numRead);
+        else if (numRead < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
+            finished = true;
     }
 
     disableRawMode ();
+    fprintf (stdout, "\n\rmaster is terminating\n");
 }
