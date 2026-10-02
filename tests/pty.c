@@ -1,3 +1,8 @@
+/*
+ * PTY test program master
+ * runs a program via a pty
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -11,6 +16,7 @@
 #include <string.h>
 
 #define MAX_SLAVE_NAME      64
+#define PTY_BUFFER_SIZE     1024
 
 struct termios old_termios;
 
@@ -167,7 +173,7 @@ int main (int argc, char **argv)
     int masterFd;
     fd_set inFds;
     size_t numRead;
-    char buffer[256];
+    char buffer[PTY_BUFFER_SIZE];
     bool finished = false;
 
     /* save for later use */
@@ -208,14 +214,14 @@ int main (int argc, char **argv)
         }
 
         /* check if we received any data from the slave */
-        numRead = read (masterFd, buffer, 256);
+        numRead = read (masterFd, buffer, PTY_BUFFER_SIZE);
         if (numRead > 0)
             write (STDOUT_FILENO, buffer, numRead);
         else if (numRead < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
             finished = true;
 
         /* check if we received any data from our stdin to send to the child */
-        numRead = read (STDIN_FILENO, buffer, 256);
+        numRead = read (STDIN_FILENO, buffer, PTY_BUFFER_SIZE);
         if (numRead > 0)
             write (masterFd, buffer, numRead);
         else if (numRead < 0 && errno != EAGAIN && errno != EWOULDBLOCK)

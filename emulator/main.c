@@ -14,6 +14,8 @@ SDL_Texture *fontNormal;
 
 SDL_Rect cursorPosition;
 
+char lastKeyCodeSent;
+
 void update_framebuffer_rect (void)
 {
     int window_w, window_h;
@@ -182,6 +184,66 @@ void parseCommandlineParameters (int argc, char **argv)
     }
 }
 
+/* #######################################################################
+   Keyboard and Input handling
+   ####################################################################### */
+
+void send_ascii (char code)
+{
+    fprintf (stdout, "Sending [0x%02X %03d] (%c) to the slave\n",
+        code, code, ((code >= 32 && code <= 126) ? code : ' '));
+
+    lastKeyCodeSent = code;
+}
+
+bool handle_keydown (SDL_KeyboardEvent *event)
+{
+    /* we have to send CTRL-xxx combinations to the slave, e.g. Ctrl-A = 1, Ctrl-B = 2, ... */
+    if ((event->mod & SDL_KMOD_LCTRL) || (event->mod & SDL_KMOD_RCTRL))
+    {
+        if (event->key >= 'a' && event->key <= 'z')
+            send_ascii(event->key - 0x60);
+    }
+    else if (event->key == SDLK_DELETE)
+        send_ascii (0x7F);
+    else if (event->key == SDLK_BACKSPACE)
+        send_ascii (0x08);
+    else if (event->key == SDLK_ESCAPE)
+        send_ascii (0x1B);
+    else if (event->key == SDLK_TAB)
+        send_ascii (0x09);
+    else if ((event->key >= SDLK_A && event->key <= SDLK_Z) ||
+             (event->key >= SDLK_0 && event->key <= SDLK_9))
+    {
+        /* only repeat a-z and 0-9 because for other keys, SDL does it by itself with SDL_TEXTINPUT */
+        if ((char) event->key == lastKeyCodeSent && event->repeat)
+            send_ascii (lastKeyCodeSent);
+    }
+
+    return true;
+}
+
+bool handle_textinput (SDL_TextInputEvent *event)
+{
+    int i, inputLen;
+    const bool *keyState;
+
+    /* we only process input text if CTRL is unpressed - this should never happen, but better safe then sorry */
+    keyState = SDL_GetKeyboardState (NULL);
+    if (keyState[SDL_SCANCODE_LCTRL] || keyState[SDL_SCANCODE_RCTRL])
+        return false;
+
+    /* if the key is non-ascii, just refuse */
+    if (!(event->text[0] >= 0 && event->text[0] <= 127))
+        return false;
+
+    inputLen = strlen (event->text);
+    for (i = 0; i < inputLen; i ++)
+        send_ascii (event->text[i]);
+
+    return true;
+}
+
 int main (int argc, char **argv)
 {
     SDL_WindowFlags flags;
@@ -235,6 +297,8 @@ int main (int argc, char **argv)
         return 1;
     }
 
+    SDL_StartTextInput (window);
+
     /* load font atlas texture */
     if ((fontNormal = load_fontatlas()) == NULL)
         return 1;
@@ -245,7 +309,7 @@ int main (int argc, char **argv)
         start = SDL_GetPerformanceCounter ();
 
         /* react to events */
-        if (SDL_PollEvent (&event))
+        while (SDL_PollEvent (&event))
         {
             switch (event.type)
             {
@@ -256,6 +320,13 @@ int main (int argc, char **argv)
                 case SDL_EVENT_WINDOW_RESIZED:
                 case SDL_EVENT_WINDOW_SHOWN:
                     update_framebuffer_rect ();
+                    break;
+
+                case SDL_EVENT_TEXT_INPUT:
+                    handle_textinput (&(event.text));
+
+                case SDL_EVENT_KEY_DOWN:
+                    handle_keydown (&(event.key));
                     break;
 
                 default:
@@ -280,4 +351,7 @@ int main (int argc, char **argv)
             SDL_Delay (left);
         }
     }
+
+    /* clean up */
+    SDL_StopTextInput (window);
 }

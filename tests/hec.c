@@ -1,3 +1,8 @@
+/*
+ * PTY test program slave
+ * dumps every input received on STDIN as hex codes to STDOUT
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
