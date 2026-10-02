@@ -215,8 +215,10 @@ bool handle_keydown (SDL_KeyboardEvent *event)
     else if ((event->key >= SDLK_A && event->key <= SDLK_Z) ||
              (event->key >= SDLK_0 && event->key <= SDLK_9))
     {
-        /* only repeat a-z and 0-9 because for other keys, SDL does it by itself with SDL_TEXTINPUT */
-        if ((char) event->key == lastKeyCodeSent && event->repeat)
+        /* only repeat a-z and 0-9, because for other keys, SDL does it by itself with SDL_TEXTINPUT
+           there is also special handling required because SDL_KeyEvents only give use lowercase
+           keys, so we have to take that into account when doing our repeat magic */
+        if ((char) event->key == tolower (lastKeyCodeSent) && event->repeat)
             send_ascii (lastKeyCodeSent);
     }
 
