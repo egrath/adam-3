@@ -4,6 +4,7 @@
 #include <SDL3/SDL.h>
 
 #include "adm3a.h"
+#include "pty_unix.h"
 
 #define FONT_GLYPH_FOREGROUND       0xFF81FF81
 #define FONT_GLYPH_BACKGROUND       0x00000000
@@ -20,6 +21,9 @@ SDL_Texture *fontInverted;      /* this is for inverted text */
 SDL_Texture *fontCursor;        /* this is just for where to cursor is */
 
 char lastKeyCodeSent;
+
+bool processChildInput (char c);
+bool processChildOutput (void);
 
 void update_framebuffer_rect (void)
 {
@@ -213,6 +217,11 @@ void parseCommandlineParameters (int argc, char **argv)
                         exit (1);
                 }
             }
+            else
+            {
+                childProcessName = argv[argIndex];
+                fprintf (stdout, "process to start: [%s]\n", childProcessName);
+            }
         }
     }
 }
@@ -228,7 +237,8 @@ void send_ascii (char code)
 
     lastKeyCodeSent = code;
 
-    adm3a_receive (code);
+    /* send it to our child */
+    processChildInput (code);
 }
 
 bool handle_keydown (SDL_KeyboardEvent *event)
@@ -279,6 +289,38 @@ bool handle_textinput (SDL_TextInputEvent *event)
     inputLen = strlen (event->text);
     for (i = 0; i < inputLen; i ++)
         send_ascii (event->text[i]);
+
+    return true;
+}
+
+/* #######################################################################
+   Child process communication
+   ####################################################################### */
+
+bool processChildOutput (void)
+{
+    size_t numRead;
+    char inputBuffer[PTY_BUFFER_SIZE];
+    int i;
+
+    /* check if we received any data from the slave */
+    numRead = read (masterFd, inputBuffer, PTY_BUFFER_SIZE);
+    if (numRead > 0)
+        /* send the incoming data to the terminal */
+        for (i = 0; i < (int) numRead; i ++)
+            adm3a_put_character (inputBuffer[i]);
+    else if (numRead < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
+        return false;
+
+    return true;
+}
+
+bool processChildInput (char c)
+{
+    if (!isChildAlive ())
+        return false;
+
+    write (masterFd, &c, 1);
 
     return true;
 }
@@ -343,6 +385,13 @@ int main (int argc, char **argv)
     if ((fontCursor = load_fontatlas (CURSOR_FOREGROUND, CURSOR_BACKGROUND)) == NULL)
         return 1;
 
+    /* start the child process running as our terminal client */
+    if (!startProcess (TERM_ROWS, TERM_COLUMNS))
+    {
+        fprintf (stderr, "failed to run child process\n");
+        exit (1);
+    }
+
     /* Main Loop */
     while (run)
     {
@@ -373,6 +422,12 @@ int main (int argc, char **argv)
                     break;
             }
         }
+
+        /* read all incoming data from the started process */
+        if (isChildAlive ())
+            processChildOutput ();
+        else
+            run = false;
 
         /* render the terminal the framebuffer */
         render_terminal();

@@ -2,6 +2,24 @@
 
 struct termios old_termios;
 
+char *childProcessName;
+pid_t childProcessPid;
+int masterFd;
+
+bool isChildAlive (void)
+{
+    int childStatus;
+
+    /* check if the child has terminated */
+    if (waitpid (childProcessPid, &childStatus, WNOHANG) == childProcessPid)
+    {
+        fprintf (stdout, "pty: child has died\n");
+        return false;
+    }
+
+    return true;
+}
+
 int ptyMasterOpen (char *slaveName, size_t len)
 {
     int masterFd;
@@ -144,4 +162,33 @@ void enableRawMode (void)
 void disableRawMode (void)
 {
     tcsetattr (STDIN_FILENO, TCSANOW, &old_termios);
+}
+
+bool startProcess (int rows, int columns)
+{   
+    struct winsize ws;
+
+    ws.ws_row = rows;
+    ws.ws_col = columns;
+
+    childProcessPid = ptyFork (&masterFd, NULL, &ws);
+    if (childProcessPid == -1)
+    {
+        fprintf (stderr, "pty: ptyFork() failed\n");
+        return false;
+    }
+
+    if (childProcessPid == 0) /* Am I the child now? */
+    {
+        execlp ("/Users/egon/tmp/copy/RunCPM/RunCPM/RunCPM", "/Users/egon/tmp/copy/RunCPM/RunCPM/RunCPM", (char *) NULL);
+        return false;
+    }
+
+    fprintf (stdout, "pty: started child process with pid %d\n\r", childProcessPid);
+
+    /* make the PTY and stdin non blocking */
+    fcntl (masterFd, F_SETFL, O_NONBLOCK);
+    fcntl (STDIN_FILENO, F_SETFL, O_NONBLOCK);
+
+    return true;
 }
