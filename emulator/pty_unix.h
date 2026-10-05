@@ -16,4 +16,11 @@
 #define MAX_SLAVE_NAME      64
 #define PTY_BUFFER_SIZE     1024
 
+int ptyMasterOpen (char *slaveName, size_t len);
+pid_t ptyFork (int *masterFd, struct termios *slaveTermios, const struct winsize *slaveWs);
+void enableRawMode (void);
+void disableRawMode (void);
+
+
+
 #endif

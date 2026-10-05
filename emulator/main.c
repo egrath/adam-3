@@ -5,14 +5,19 @@
 
 #include "adm3a.h"
 
+#define FONT_GLYPH_FOREGROUND       0xFF81FF81
+#define FONT_GLYPH_BACKGROUND       0x00000000
+#define CURSOR_BACKGROUND           0xFFFFB003
+#define CURSOR_FOREGROUND           0xFF000000
+
 SDL_Renderer *renderer;
 SDL_Window *window;
 SDL_Texture *framebuffer;
 SDL_FRect framebufferRenderRect;
 
-SDL_Texture *fontNormal;
-
-SDL_Rect cursorPosition;
+SDL_Texture *fontNormal;        /* this is the font normally used */
+SDL_Texture *fontInverted;      /* this is for inverted text */
+SDL_Texture *fontCursor;        /* this is just for where to cursor is */
 
 char lastKeyCodeSent;
 
@@ -39,7 +44,7 @@ void update_framebuffer_rect (void)
     framebufferRenderRect.y = (window_h - framebufferRenderRect.h) / 2;
 }
 
-SDL_Texture * load_fontatlas (void)
+SDL_Texture * load_fontatlas (uint32_t foreground, uint32_t background)
 {
     SDL_Texture *atlas;
     FILE *input;
@@ -72,9 +77,9 @@ SDL_Texture * load_fontatlas (void)
     {
         fread (&c, 1, 1, input);
         if (c=='.') 
-            glyphPixel = 0x00000000;
+            glyphPixel = background;
         else if (c=='@')
-            glyphPixel = 0xFF81FF81;
+            glyphPixel = foreground;
         else
             continue;
 
@@ -104,7 +109,7 @@ SDL_Texture * load_fontatlas (void)
 }
 
 /* render a single char to the proper position in our framebuffer using ADM-3A
-   coordinates: row from 1 to 25 and column from 1 to 80 */ 
+   coordinates: row from 1 to 24 and column from 1 to 80 */ 
 void render_char (unsigned char c, int y, int x)
 {
     SDL_FRect sourceRect, destRect;
@@ -123,6 +128,32 @@ void render_char (unsigned char c, int y, int x)
 
     /* Blit the character to the screen */
     SDL_RenderTexture (renderer, fontNormal, &sourceRect, &destRect);
+}
+
+/* render the cursor at the current position. Very similar to rendering
+   a regular character */
+void render_cursor (void)
+{
+    SDL_FRect sourceRect, destRect;
+    char c;
+
+    /* which char is at the current cursor position? */
+    c = buffer[cursor.y-1][cursor.x-1].content;
+
+    /* where in the atlas is our glyph? */
+    sourceRect.w = (float) 8;
+    sourceRect.h = (float) 16;
+    sourceRect.x = (float) ((c % 16 ) * 8);
+    sourceRect.y = (float) ((c / 16 ) * 16);  
+
+    /* where do we have to place the glyph? */
+    destRect.w = (float) 8;
+    destRect.h = (float) 16;
+    destRect.x = (float) ((cursor.x-1) * 8);
+    destRect.y = (float) ((cursor.y-1) * 16);
+
+    /* Blit the character to the screen */
+    SDL_RenderTexture (renderer, fontCursor, &sourceRect, &destRect);
 }
 
 /* render the content of the whole terminal buffer to the framebuffer */
@@ -145,6 +176,8 @@ void render_terminal (void)
             render_char (buffer[y][x].content, y+1, x+1);
         }
     }
+
+    render_cursor ();
 
     /* Switch back the render target to the display */
     SDL_SetRenderTarget (renderer, NULL);
@@ -194,6 +227,8 @@ void send_ascii (char code)
         code, code, ((code >= 32 && code <= 126) ? code : ' '));
 
     lastKeyCodeSent = code;
+
+    adm3a_receive (code);
 }
 
 bool handle_keydown (SDL_KeyboardEvent *event)
@@ -205,13 +240,15 @@ bool handle_keydown (SDL_KeyboardEvent *event)
             send_ascii(event->key - 0x60);
     }
     else if (event->key == SDLK_DELETE)
-        send_ascii (0x7F);
+        send_ascii (ASCII_DEL);
     else if (event->key == SDLK_BACKSPACE)
-        send_ascii (0x08);
+        send_ascii (ASCII_BS);
     else if (event->key == SDLK_ESCAPE)
-        send_ascii (0x1B);
+        send_ascii (ASCII_ESCAPE);
     else if (event->key == SDLK_TAB)
-        send_ascii (0x09);
+        send_ascii (ASCII_HT);
+    else if (event->key == SDLK_RETURN)
+        send_ascii (ASCII_CR);
     else if ((event->key >= SDLK_A && event->key <= SDLK_Z) ||
              (event->key >= SDLK_0 && event->key <= SDLK_9))
     {
@@ -256,9 +293,6 @@ int main (int argc, char **argv)
 
     int run = true;
 
-    cursorPosition.x = 1;
-    cursorPosition.y = 1;
-
     parseCommandlineParameters (argc, argv);
 
     adm3a_initialize ();
@@ -270,7 +304,7 @@ int main (int argc, char **argv)
     }
 
     flags = SDL_WINDOW_RESIZABLE;
-    if ((window = SDL_CreateWindow ("ADAM-3", 1280, 800, flags)) == NULL)
+    if ((window = SDL_CreateWindow ("ADAM-3", 1280, 768, flags)) == NULL)
     {
         fprintf (stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
         return 1;
@@ -287,7 +321,7 @@ int main (int argc, char **argv)
     SDL_SetRenderVSync (renderer, SDL_RENDERER_VSYNC_DISABLED);
 
     /* create our framebuffer */
-    framebuffer = SDL_CreateTexture (renderer, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_TARGET, 640, 400);
+    framebuffer = SDL_CreateTexture (renderer, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_TARGET, 640, 384);
     if (framebuffer == NULL)
     {
         fprintf (stderr, "SDL_CreateTexture failed: %s\n", SDL_GetError());
@@ -301,8 +335,12 @@ int main (int argc, char **argv)
 
     SDL_StartTextInput (window);
 
-    /* load font atlas texture */
-    if ((fontNormal = load_fontatlas()) == NULL)
+    /* load font atlas textures for the different font kinds used */
+    if ((fontNormal = load_fontatlas (FONT_GLYPH_FOREGROUND, FONT_GLYPH_BACKGROUND)) == NULL)
+        return 1;
+    if ((fontInverted = load_fontatlas (FONT_GLYPH_BACKGROUND, FONT_GLYPH_FOREGROUND)) == NULL)
+        return 1;
+    if ((fontCursor = load_fontatlas (CURSOR_FOREGROUND, CURSOR_BACKGROUND)) == NULL)
         return 1;
 
     /* Main Loop */
