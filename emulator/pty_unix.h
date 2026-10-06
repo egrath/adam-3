@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/errno.h>
+#include <signal.h>
 
 #include <string.h>
 
@@ -28,5 +29,6 @@ void    enableRawMode (void);
 void    disableRawMode (void);
 
 bool    startProcess (int rows, int columns);
+void    stopProcess (void);
 
 #endif

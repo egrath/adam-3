@@ -13,7 +13,9 @@ bool isChildAlive (void)
     /* check if the child has terminated */
     if (waitpid (childProcessPid, &childStatus, WNOHANG) == childProcessPid)
     {
-        fprintf (stdout, "pty: child has died\n");
+        #ifdef DEBUG
+        fprintf (stdout, "DEBUG: started child with pid %d has died!\n", childProcessPid);
+        #endif
         return false;
     }
 
@@ -164,6 +166,28 @@ void disableRawMode (void)
     tcsetattr (STDIN_FILENO, TCSANOW, &old_termios);
 }
 
+void stopProcess (void)
+{
+    int childStatus;
+
+    #ifdef DEBUG
+    fprintf (stdout, "DEBUG: Stopping child process\n");
+    #endif
+
+    /* close PTY master */
+    if (masterFd >= 0)
+    {
+        close (masterFd);
+        masterFd = -1;
+    }
+
+    if (isChildAlive ())
+    {
+        kill (childProcessPid, SIGTERM);
+        waitpid (childProcessPid, &childStatus, 0);
+    }
+}
+
 bool startProcess (int rows, int columns)
 {   
     struct winsize ws;
@@ -172,6 +196,10 @@ bool startProcess (int rows, int columns)
 
     ws.ws_row = rows;
     ws.ws_col = columns;
+
+    #ifdef DEBUG
+    fprintf (stdout, "DEBUG: starting child process\n");
+    #endif
 
     /* build a new argv for the process to start */
     argv = (char **) malloc (sizeof (char *) * (cmdline.numProcessParameters+2));
@@ -184,7 +212,7 @@ bool startProcess (int rows, int columns)
     childProcessPid = ptyFork (&masterFd, NULL, &ws);
     if (childProcessPid == -1)
     {
-        fprintf (stderr, "forking failed\n");
+        fprintf (stderr, "forking failed! (%s, %d)\n", __FILE__, __LINE__);
         return false;
     }
 
@@ -204,7 +232,9 @@ bool startProcess (int rows, int columns)
         return false;
     }
 
-    fprintf (stdout, "started child process (%s) with pid %d\n\r", argv[0], childProcessPid);
+    #ifdef DEBUG
+    fprintf (stdout, "DEBUG: started child process (%s) with pid %d\n\r", argv[0], childProcessPid);
+    #endif
 
     /* make the PTY and stdin non blocking */
     fcntl (masterFd, F_SETFL, O_NONBLOCK);

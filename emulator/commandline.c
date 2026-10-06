@@ -39,10 +39,21 @@ static char * buildAbsolutePath (char *relative)
     return absolute;
 }
 
+static void setDefaults (void)
+{
+    /* terminal colors */
+    cmdline.terminalForeground = 0xFF81FF81;
+    cmdline.terminalBackground = 0xFF000000;
+    cmdline.cursorForeground = 0xFF000000;
+    cmdline.cursorBackground = 0xFFFFB003;
+}
+
 bool parseCommandlineParameters (int argc, char **argv)
 {
     int argIndex, parIndex;
     int childParameterIndex = -1;
+
+    setDefaults();
 
     if (argc >= 2)
     {
@@ -56,6 +67,19 @@ bool parseCommandlineParameters (int argc, char **argv)
                         printHelp ();
                         return false;
                         break;
+/*
+                    case 'f':
+                        if (argv[argIndex][1] == '\0')
+                        {
+                            printHelp ();
+                            return false;
+                        }
+                        else if (argv[argIndex][1] == 't' && argv[argIndex+1] != NULL)
+                        {
+                            cmdline.terminalForeground = 
+                        }
+                        break;
+*/
 
                     case 'w': /* working directory for child process */
                         if (argv[argIndex+1] != NULL)
@@ -115,12 +139,14 @@ bool parseCommandlineParameters (int argc, char **argv)
     }
     else
     {
-        fprintf (stdout, "process to start.        : %s\n", cmdline.processName);
-        fprintf (stdout, "process working directory: %s\n", cmdline.processWorkingDir == NULL ? "not specified" : cmdline.processWorkingDir);
+        #ifdef DEBUG
+        fprintf (stdout, "DEBUG: process to start.        : %s\n", cmdline.processName);
+        fprintf (stdout, "DEBUG: process working directory: %s\n", cmdline.processWorkingDir == NULL ? "not specified" : cmdline.processWorkingDir);
         for (parIndex = 0; parIndex < cmdline.numProcessParameters; parIndex ++)
         {
-            fprintf (stdout, "             parameter %02d: %s\n", parIndex, *(cmdline.processParameters+parIndex));
+            fprintf (stdout, "DEBUG:             parameter %02d: %s\n", parIndex, *(cmdline.processParameters+parIndex));
         }
+        #endif
     }
 
     return true;

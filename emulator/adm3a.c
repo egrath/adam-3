@@ -26,6 +26,9 @@ void adm3a_initialize (void)
 
     /* set cursor position */
     cursor.x = cursor.y = 1;
+
+    /* initial decoder state */
+    decoder_state = DS_NORMAL;
 }
 
 /* verify if given coordinates are within our visible range */
@@ -40,8 +43,13 @@ void adm3a_set_character (char c, int y, int x)
     if( !adm3a_verify_input_range (y, x))
         return;
 
-    fprintf (stdout, "setting character [%c] at position (r:%d,c:%d) [in buffer (r:%d,c:%d)]\n",
+    #ifdef DEBUG
+    /*
+    fprintf (stdout, "DEBUG: ADM-3A: setting character [%c] at position (r:%d,c:%d) [in buffer (r:%d,c:%d)]\n",
         c, y, x, y-1, x-1);
+    fflush (stdout);
+    */
+    #endif
 
     buffer[y-1][x-1].content = c;
     buffer[y-1][x-1].x = x;
@@ -137,64 +145,12 @@ void adm3a_put_character (char c)
    data from the host and updates internal states (text content, cursor ...) */
 void adm3a_receive (char c)
 {
-    /* are we already in a escape sequence? */
-    if (decoder_state == DS_ESCAPE)
+    switch (decoder_state)
     {
-        switch (c)
-        {
-            case '(':
-                fprintf (stderr, "adm3a: set foreground mode not yet implemented\n");
-                break;
-
-            case ')':
-                fprintf (stderr, "adm3a: set background mode not yet implemented\n");
-                break;
-
-            case 'G':
-                decoder_state = DS_SET_VIDEO_ATTRIBUTE;
-                break;
-
-            case 'o':
-                decoder_state = DS_TERM_OPER;
-                break;
-
-            default:
-                /* receive row for set cursor and set to 1 or 24 if outside of valid range */
-                if (c >= ASCII_SPACE && c <= '7')
-                    parameter1 = c - ASCII_SPACE + 1;
-                else if (c < ASCII_SPACE)
-                    parameter1 = 1;
-                else if (c > '7')
-                    parameter1 = TERM_ROWS;
-                decoder_state = DS_SET_CURSOR_PARAM2;
-                break;
-        }
-    }
-    else if (decoder_state == DS_SET_CURSOR_PARAM2)
-    {
-        /* we are about to receive the second parameter for the set cursor command (column) */
-        if (c >= ASCII_SPACE && c <= 'o')
-            parameter2 = c - ASCII_SPACE + 1;
-        else if (c < ASCII_SPACE)
-            parameter2 = 1;
-        else if (c > 'o')
-            parameter2 = TERM_COLUMNS;
-
-        fprintf (stdout, "adm3: set cursor command received, new position: row=%d, column=%d\n",
-            parameter1, parameter2);
-
-        adm3a_set_cursor_position (parameter1, parameter2);
-
-        decoder_state = DS_NORMAL;
-    }
-    else
-    {
-        if (c == ASCII_ESCAPE)
-            decoder_state = DS_ESCAPE;
-        else
-        {
-            fprintf (stdout, "adm3: received ascii [%c] (%02X, %03d)\n", c, c, c);
+        case DS_NORMAL:
             adm3a_put_character (c);
-        }
+            break;
+        default:
+            break;
     }
 }

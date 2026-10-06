@@ -7,10 +7,7 @@
 #include "commandline.h"
 #include "pty_unix.h"
 
-#define FONT_GLYPH_FOREGROUND       0xFF81FF81
-#define FONT_GLYPH_BACKGROUND       0x00000000
-#define CURSOR_BACKGROUND           0xFFFFB003
-#define CURSOR_FOREGROUND           0xFF000000
+#define FRAMEBUFFER_BORDER_SIZE     4              /* border on every side; it's in client space, so it scales */
 
 #define FONT_WIDTH                  8
 #define FONT_HEIGHT                 16
@@ -35,7 +32,9 @@ void update_framebuffer_rect (void)
     float texture_w, texture_h;
     float scale_w, scale_h, scale;
 
-    fprintf (stdout, "update_framebuffer_rect ()\n");
+    #ifdef DEBUG
+    fprintf (stdout, "DEBUG: update_framebuffer_rect ()\n");
+    #endif
 
     SDL_GetWindowSizeInPixels (window, &window_w, &window_h);
     SDL_GetTextureSize (framebuffer, &texture_w, &texture_h);
@@ -69,13 +68,13 @@ SDL_Texture * load_fontatlas (uint32_t foreground, uint32_t background)
     atlas = SDL_CreateTexture (renderer, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING, 128, 256);
     if (atlas == NULL)
     {
-        fprintf (stderr, "SDL_CreateTexture failed: %s\n", SDL_GetError());
+        fprintf (stderr, "SDL_CreateTexture failed: %s (%s, %d)\n", SDL_GetError(), __FILE__, __LINE__);
         exit (1);
     }
 
     if ((input = fopen("font.dat","rb")) == NULL)
     {
-        fprintf (stderr, "failed to load font atlas file\n");
+        fprintf (stderr, "failed to load font atlas file (%s, %d)\n", __FILE__, __LINE__);
         exit (1);
     }
 
@@ -98,20 +97,22 @@ SDL_Texture * load_fontatlas (uint32_t foreground, uint32_t background)
     fclose (input);
     SDL_UnlockTexture (atlas);
 
-#if defined(DEBUG)
+    #ifdef DEBUG
     SDL_Surface *s;
     if (!SDL_LockTextureToSurface (atlas, NULL, &s))
     {
         fprintf (stderr, "SDL_LockTextureToSurface failed: %s\n", SDL_GetError());
     }
     SDL_SavePNG (s, "test.png");
-#endif
+    #endif
 
     /* profiling */
     end = SDL_GetPerformanceCounter ();
-
     duration = (end - start)  / ( SDL_GetPerformanceFrequency() / 1000);
-    fprintf (stdout, "loading of the font atlas took: %lld ms\n", duration);
+    
+    #ifdef DEBUG
+    fprintf (stdout, "DEBUG: loading of the font atlas took: %lld ms\n", duration);
+    #endif
 
     return atlas;
 }
@@ -131,8 +132,8 @@ void render_char (unsigned char c, int y, int x)
     /* where do we have to place the glyph? */
     destRect.w = (float) 8;
     destRect.h = (float) 16;
-    destRect.x = (float) ((x-1) * 8);
-    destRect.y = (float) ((y-1) * 16);
+    destRect.x = (float) ((x-1) * 8) + FRAMEBUFFER_BORDER_SIZE;
+    destRect.y = (float) ((y-1) * 16) + FRAMEBUFFER_BORDER_SIZE;
 
     /* Blit the character to the screen */
     SDL_RenderTexture (renderer, fontNormal, &sourceRect, &destRect);
@@ -157,8 +158,8 @@ void render_cursor (void)
     /* where do we have to place the glyph? */
     destRect.w = (float) 8;
     destRect.h = (float) 16;
-    destRect.x = (float) ((cursor.x-1) * 8);
-    destRect.y = (float) ((cursor.y-1) * 16);
+    destRect.x = (float) ((cursor.x-1) * 8) + FRAMEBUFFER_BORDER_SIZE;
+    destRect.y = (float) ((cursor.y-1) * 16) + FRAMEBUFFER_BORDER_SIZE;
 
     /* Blit the character to the screen */
     SDL_RenderTexture (renderer, fontCursor, &sourceRect, &destRect);
@@ -205,8 +206,10 @@ void render_terminal (void)
 
 void send_ascii (char code)
 {
-    fprintf (stdout, "Sending [0x%02X %03d] (%c) to the slave\n",
+    #ifdef DEBUG
+    fprintf (stdout, "DEBUG: Sending [0x%02X %03d] (%c) to the slave\n",
         code, code, ((code >= 32 && code <= 126) ? code : ' '));
+    #endif
 
     lastKeyCodeSent = code;
 
@@ -272,16 +275,24 @@ bool handle_textinput (SDL_TextInputEvent *event)
 
 bool processChildOutput (void)
 {
-    size_t numRead;
+    ssize_t numRead;
     char inputBuffer[PTY_BUFFER_SIZE];
     int i;
 
     /* check if we received any data from the slave */
     numRead = read (masterFd, inputBuffer, PTY_BUFFER_SIZE);
     if (numRead > 0)
+    {
+        #ifdef DEBUG
+        fprintf (stdout, "DEBUG: received %zd bytes from the child and passing it on\n", numRead);
+        #endif
+
         /* send the incoming data to the terminal */
         for (i = 0; i < (int) numRead; i ++)
-            adm3a_put_character (inputBuffer[i]);
+        {
+            adm3a_receive (inputBuffer[i]);
+        }
+    }
     else if (numRead < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
         return false;
 
@@ -306,6 +317,17 @@ int main (int argc, char **argv)
     uint64_t start, end;
     double duration, left;
 
+    int fbWidth, fbHeight;
+
+    /* what is the size of our framebuffer? It has to fit 80x24 characters with a size
+       of 8x16 pixels and also has some space around for better visibility */
+    fbWidth = (FONT_WIDTH * TERM_COLUMNS) + (2 * FRAMEBUFFER_BORDER_SIZE);
+    fbHeight = (FONT_HEIGHT * TERM_ROWS) + (2 * FRAMEBUFFER_BORDER_SIZE);
+
+    #ifdef DEBUG
+    fprintf (stdout, "DEBUG: framebuffer size will be a total of %d x %d pixels\n", fbWidth, fbHeight);
+    #endif
+
     int run = true;
 
     if (!parseCommandlineParameters (argc, argv))
@@ -315,21 +337,21 @@ int main (int argc, char **argv)
 
     if (SDL_InitSubSystem (SDL_INIT_VIDEO) == 0)
     {
-        fprintf (stderr, "SDL_InitSubsystem failed: %s\n", SDL_GetError());
+        fprintf (stderr, "SDL_InitSubsystem failed: %s (%s, %d)\n", SDL_GetError(), __FILE__, __LINE__);
         return 1;
     }
 
     flags = SDL_WINDOW_RESIZABLE;
-    if ((window = SDL_CreateWindow ("ADAM-3", 1280, 768, flags)) == NULL)
+    if ((window = SDL_CreateWindow ("ADAM-3", fbWidth*2, fbHeight*2, flags)) == NULL)
     {
-        fprintf (stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
+        fprintf (stderr, "SDL_CreateWindow failed: %s (%s, %d)\n", SDL_GetError(), __FILE__, __LINE__);
         return 1;
     }
     SDL_ShowWindow (window);
 
     if ((renderer = SDL_CreateGPURenderer (NULL, window)) == NULL)
     {
-        fprintf (stderr, "SDL_CreateGPURenderer failed: %s\n", SDL_GetError());
+        fprintf (stderr, "SDL_CreateGPURenderer failed: %s (%s, %d)\n", SDL_GetError(), __FILE__, __LINE__);
         return 1;
     }
 
@@ -337,32 +359,35 @@ int main (int argc, char **argv)
     SDL_SetRenderVSync (renderer, SDL_RENDERER_VSYNC_DISABLED);
 
     /* create our framebuffer */
-    framebuffer = SDL_CreateTexture (renderer, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_TARGET, 640, 384);
+    framebuffer = SDL_CreateTexture (renderer, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_TARGET, fbWidth, fbHeight);
     if (framebuffer == NULL)
     {
-        fprintf (stderr, "SDL_CreateTexture failed: %s\n", SDL_GetError());
+        fprintf (stderr, "SDL_CreateTexture failed: %s (%s, %d)\n", SDL_GetError(), __FILE__, __LINE__);
         return 1;
     }
     if (SDL_SetTextureScaleMode (framebuffer, SDL_SCALEMODE_PIXELART) == 0)
     {
-        fprintf (stderr, "SDL_SetTextureScaleMode failed: %s\n", SDL_GetError());
+        fprintf (stderr, "SDL_SetTextureScaleMode failed: %s (%s, %d)\n", SDL_GetError(), __FILE__, __LINE__);
         return 1;
     }
 
     SDL_StartTextInput (window);
 
     /* load font atlas textures for the different font kinds used */
-    if ((fontNormal = load_fontatlas (FONT_GLYPH_FOREGROUND, FONT_GLYPH_BACKGROUND)) == NULL)
+    #ifdef DEBUG
+    fprintf (stdout, "DEBUG: terminal foreground=%08X background=%08X\n", cmdline.terminalForeground, cmdline.terminalBackground);
+    #endif
+    if ((fontNormal = load_fontatlas (cmdline.terminalForeground, cmdline.terminalBackground)) == NULL)
         return 1;
-    if ((fontInverted = load_fontatlas (FONT_GLYPH_BACKGROUND, FONT_GLYPH_FOREGROUND)) == NULL)
+    if ((fontInverted = load_fontatlas (cmdline.terminalBackground, cmdline.terminalForeground)) == NULL)
         return 1;
-    if ((fontCursor = load_fontatlas (CURSOR_FOREGROUND, CURSOR_BACKGROUND)) == NULL)
+    if ((fontCursor = load_fontatlas (cmdline.cursorForeground, cmdline.cursorBackground)) == NULL)
         return 1;
 
     /* start the child process running as our terminal client */
     if (!startProcess (TERM_ROWS, TERM_COLUMNS))
     {
-        fprintf (stderr, "failed to run child process\n");
+        fprintf (stderr, "failed to run child process (%s, %d)\n", __FILE__, __LINE__);
         exit (1);
     }
 
@@ -420,6 +445,9 @@ int main (int argc, char **argv)
             SDL_Delay (left);
         }
     }
+
+    /* stop the child process */
+    stopProcess ();
 
     /* clean up */
     SDL_StopTextInput (window);
