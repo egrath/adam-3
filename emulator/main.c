@@ -4,12 +4,16 @@
 #include <SDL3/SDL.h>
 
 #include "adm3a.h"
+#include "commandline.h"
 #include "pty_unix.h"
 
 #define FONT_GLYPH_FOREGROUND       0xFF81FF81
 #define FONT_GLYPH_BACKGROUND       0x00000000
 #define CURSOR_BACKGROUND           0xFFFFB003
 #define CURSOR_FOREGROUND           0xFF000000
+
+#define FONT_WIDTH                  8
+#define FONT_HEIGHT                 16
 
 SDL_Renderer *renderer;
 SDL_Window *window;
@@ -195,37 +199,6 @@ void render_terminal (void)
     */
 }
 
-void parseCommandlineParameters (int argc, char **argv)
-{
-    int argIndex;
-
-    if (argc >= 2)
-    {
-        for (argIndex = 1; argIndex < argc; argIndex ++)
-        {
-            if (argv[argIndex][0] == '-' || argv[argIndex][0] == '/')
-            {
-                switch (argv[argIndex][1])
-                {
-                    case 'h':
-                        fprintf (stdout, "ADAM-3 help\n");
-                        exit (0);
-                        break;
-
-                    default:
-                        fprintf (stdout, "unknown argument \'%c\' given", argv[argIndex][1]);
-                        exit (1);
-                }
-            }
-            else
-            {
-                childProcessName = argv[argIndex];
-                fprintf (stdout, "process to start: [%s]\n", childProcessName);
-            }
-        }
-    }
-}
-
 /* #######################################################################
    Keyboard and Input handling
    ####################################################################### */
@@ -335,7 +308,8 @@ int main (int argc, char **argv)
 
     int run = true;
 
-    parseCommandlineParameters (argc, argv);
+    if (!parseCommandlineParameters (argc, argv))
+        return 1;
 
     adm3a_initialize ();
 

@@ -5,7 +5,7 @@ LDFLAGS =
 SRCDIR  = .
 BLDDIR  = build
 
-OBJS    = $(addprefix $(BLDDIR)/, main.o adm3a.o pty_unix.o)
+OBJS    = $(addprefix $(BLDDIR)/, main.o adm3a.o pty_unix.o commandline.o)
 EXE     = $(BLDDIR)/adam-3
 
 # operating system specific compiler flags

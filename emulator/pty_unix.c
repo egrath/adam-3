@@ -167,24 +167,44 @@ void disableRawMode (void)
 bool startProcess (int rows, int columns)
 {   
     struct winsize ws;
+    char **argv;
+    int i;
 
     ws.ws_row = rows;
     ws.ws_col = columns;
 
+    /* build a new argv for the process to start */
+    argv = (char **) malloc (sizeof (char *) * (cmdline.numProcessParameters+2));
+    argv[0] = cmdline.processName;
+    for (i = 0; i < cmdline.numProcessParameters; i ++)
+        argv[i+1] = cmdline.processParameters[i];
+    argv[cmdline.numProcessParameters+1] = NULL;
+
+    /* we are going to fork! */
     childProcessPid = ptyFork (&masterFd, NULL, &ws);
     if (childProcessPid == -1)
     {
-        fprintf (stderr, "pty: ptyFork() failed\n");
+        fprintf (stderr, "forking failed\n");
         return false;
     }
 
-    if (childProcessPid == 0) /* Am I the child now? */
+    /* Am I the child now? */
+    if (childProcessPid == 0)
     {
-        execlp ("/Users/egon/tmp/copy/RunCPM/RunCPM/RunCPM", "/Users/egon/tmp/copy/RunCPM/RunCPM/RunCPM", (char *) NULL);
+        enableRawMode();
+
+        /* set process working directory (if specified) */
+        if (cmdline.processWorkingDir != NULL)
+            chdir (cmdline.processWorkingDir);
+
+        /* and execute the process */
+        execvp (cmdline.processName, argv);
+
+        /* we never get here, as the process image is replaced by the former call */
         return false;
     }
 
-    fprintf (stdout, "pty: started child process with pid %d\n\r", childProcessPid);
+    fprintf (stdout, "started child process (%s) with pid %d\n\r", argv[0], childProcessPid);
 
     /* make the PTY and stdin non blocking */
     fcntl (masterFd, F_SETFL, O_NONBLOCK);

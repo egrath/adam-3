@@ -13,6 +13,8 @@
 
 #include <string.h>
 
+#include "commandline.h"
+
 #define MAX_SLAVE_NAME      64
 #define PTY_BUFFER_SIZE     1024
 
