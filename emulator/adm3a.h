@@ -35,34 +35,36 @@
 #define ASCII_CAN       0x18        /* CTRL-X; Cancel */
 #define ASCII_EM        0x19        /* CTRL-Y; End of medium */
 #define ASCII_SUB       0x1A        /* CTRL-Z; Substitute */
-#define ASCII_ESCAPE    0x1B        /* CTRL-[ and ESC; Escape */
+#define ASCII_ESC       0x1B        /* CTRL-[ and ESC; Escape */
 #define ASCII_FS        0x1C        /* CTRL-\; File separator */
 #define ASCII_GS        0x1D        /* CTRL-]; Group separator */
 #define ASCII_RS        0x1E        /* CTRL-^; Record separator */
 #define ASCII_US        0x1F        /* CTRL-_; Unit separator */
 #define ASCII_SPACE     0x20
+#define ASCII_TILDE     0x7E
 #define ASCII_DEL       0x7F
+
+#define ASCII_7         0x37        /* Symbol '7' */
+#define ASCII_O         0x70        /* Symbol 'O' */
 
 enum DecoderState
 {
     DS_NORMAL,              /* we are just processing ASCII printable chars */
     DS_ESCAPE,              /* we received an ESC character, so we entered control mode and wait for a parameter */
-    DS_LOAD_WAIT_COL,       /* after ESC: we received an row position, so we wait for a column */
-    DS_SET_VIDEO_ATTRIBUTE, /* after ESC: we received an 'G' to set a video attribute, we wait for it */
-    DS_SET_CURSOR_PARAM1,
-    DS_SET_CURSOR_PARAM2,
-    DS_TERM_OPER,           /* after ESC: we received an 'o' to perform a terminal operation, we wait for it */
+    DS_PARAM1,              /* parameter 1 */
+    DS_PARAM2,
+    DS_PARAM3
 };
 
 enum CellState
 {
-    CS_NORMAL,
-    CS_BLANK,
-    CS_BLINK,
-    CS_REVERSE,
-    CS_UNDERLINE,
-    CS_REDUCED,
-    CS_GRAPHICS
+    CS_NORMAL       = 1,
+    CS_BLANK        = 2,
+    CS_BLINK        = 4,
+    CS_REVERSE      = 8,
+    CS_UNDERLINE    = 16,
+    CS_REDUCED      = 32,
+    CS_GRAPHICS     = 64
 };
 
 typedef struct
@@ -85,11 +87,10 @@ extern Cursor cursor;
 static bool adm3a_verify_input_range (int y, int x);
 
 void adm3a_initialize (void);
+void adm3a_clear_screen (void);
 void adm3a_set_character (char c, int y, int x);
-void adm3a_set_string (char *s, int y, int x);
 void adm3a_set_cursor_position (int y, int x);
-void adm3a_put_character (char c);
 
-void adm3a_receive (char c);
+void adm3a_process_character (char c);
 
 #endif

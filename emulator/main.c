@@ -224,13 +224,15 @@ bool handle_keydown (SDL_KeyboardEvent *event)
     {
         if (event->key >= 'a' && event->key <= 'z')
             send_ascii(event->key - 0x60);
+        else if (event->key == SDLK_HOME)
+            send_ascii (ASCII_RS);
     }
     else if (event->key == SDLK_DELETE)
         send_ascii (ASCII_DEL);
     else if (event->key == SDLK_BACKSPACE)
         send_ascii (ASCII_BS);
     else if (event->key == SDLK_ESCAPE)
-        send_ascii (ASCII_ESCAPE);
+        send_ascii (ASCII_ESC);
     else if (event->key == SDLK_TAB)
         send_ascii (ASCII_HT);
     else if (event->key == SDLK_RETURN)
@@ -290,7 +292,7 @@ bool processChildOutput (void)
         /* send the incoming data to the terminal */
         for (i = 0; i < (int) numRead; i ++)
         {
-            adm3a_receive (inputBuffer[i]);
+            adm3a_process_character (inputBuffer[i]);
         }
     }
     else if (numRead < 0 && errno != EAGAIN && errno != EWOULDBLOCK)

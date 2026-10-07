@@ -2,13 +2,27 @@
 
 Cell buffer[TERM_ROWS][TERM_COLUMNS];
 Cursor cursor;
+
 enum DecoderState decoder_state;
+char param1, param2, param3;
 
 /* used for temporarily storing received control parameters from the host */
 char parameter1, parameter2;
 
 /* initialize the terminal to it's pristine state */
 void adm3a_initialize (void)
+{
+    adm3a_clear_screen ();
+
+    /* set cursor position */
+    cursor.x = cursor.y = 1;
+
+    /* initial decoder state */
+    decoder_state = DS_NORMAL;
+}
+
+/* clear the entire screen */
+void adm3a_clear_screen (void)
 {
     int x, y;
 
@@ -23,12 +37,6 @@ void adm3a_initialize (void)
             buffer[y][x].y = y + 1;
         }
     }
-
-    /* set cursor position */
-    cursor.x = cursor.y = 1;
-
-    /* initial decoder state */
-    decoder_state = DS_NORMAL;
 }
 
 /* verify if given coordinates are within our visible range */
@@ -55,19 +63,6 @@ void adm3a_set_character (char c, int y, int x)
     buffer[y-1][x-1].x = x;
     buffer[y-1][x-1].y = y;
     buffer[y-1][x-1].state = CS_NORMAL;    
-}
-
-/* write a string into the terminal buffer at absolute position */
-void adm3a_set_string (char *s, int y, int x)
-{
-    if (!adm3a_verify_input_range (y, x))
-        return;
-
-    while (*s != '\0')
-    {
-        adm3a_set_character (*s, y, x++);
-        s++;
-    }
 }
 
 /* set the cursor to a new position */
@@ -106,25 +101,114 @@ void adm3a_scroll_down (void)
     }
 }
 
-/* put a character at the current cursor position and:
-   - advance the cursor and switch to the next line if necessary
-   - scroll the terminal if already at the end */
-void adm3a_put_character (char c)
+/* process a single character in the ADM-3A emulation. These are the characters sent back
+   by the host process (e.g. RunCPM) as we are working in full-duplex mode */
+void adm3a_process_character (char c)
 {
-    switch (c)
+    fprintf (stdout, "    inc: 0x%02X (%03d, [%c])\n", c, c, (c >= ASCII_SPACE && c <= ASCII_DEL) ? c : ' ');
+
+    if (decoder_state == DS_NORMAL)
     {
-        case ASCII_LF:
-            cursor.y ++;
-            break;
+        switch (c)
+        {
+            case ASCII_BEL:
+                /* sounds a audible tone in the terminal */
+                fprintf (stdout, "Ding Dong!\n");
+                break;
 
-        case ASCII_CR:
-            cursor.x = 1;
-            break;
+            case ASCII_BS:
+                /* move cursor on column to the left */
+                if (cursor.x > 1)
+                    cursor.x--;
+                break;
 
-        default:
-            adm3a_set_character (c, cursor.y, cursor.x);
-            cursor.x ++;
-            break;
+            case ASCII_LF:
+                /* move cursor down one row and remain in the same column */
+                cursor.y ++;
+                break;
+
+            case ASCII_VT:
+                /* move cursor up on row and remain in the same column */
+                if (cursor.y > 1)
+                    cursor.y --;
+                break;
+
+            case ASCII_FF:
+                /* move cursor one column to the right */
+                if (cursor.x < TERM_COLUMNS)
+                    cursor.x ++;
+                break;
+
+            case ASCII_CR:
+                /* move cursor to the first column of the current row */
+                cursor.x = 1;
+                break;
+
+            case ASCII_SO:
+                /* not implemented */
+                break;
+
+            case ASCII_SI:
+                /* not implemented */
+                break;
+
+            case ASCII_SUB:
+                /* clear screen */
+                adm3a_clear_screen ();
+                break;
+
+            case ASCII_ESC:
+                /* Command lead-in */
+                decoder_state = DS_PARAM1;
+                fprintf (stdout, "new state is ds_param1\n");
+                break;
+
+            case ASCII_RS:
+                /* Move cursor to home position */
+                adm3a_set_cursor_position (1, 1);
+                break;
+
+            default:
+                /* we only set printable characters */
+                if (c >= ASCII_SPACE && c <= ASCII_TILDE)
+                {
+                    adm3a_set_character (c, cursor.y, cursor.x);
+                    cursor.x ++;
+                }
+                else
+                {
+                    fprintf (stdout, "non-printable character received: %02X (%03d)\n", c, c);
+                }
+                break;
+        }
+    }
+    else if (decoder_state == DS_PARAM1)
+    {
+        param1 = c;
+        if (param1 == '=')
+            decoder_state = DS_PARAM2;
+        else
+            decoder_state = DS_NORMAL;
+    }
+    else if (decoder_state == DS_PARAM2)
+    {
+        param2 = c;
+        if (param2 >= ASCII_SPACE && param2 <= ASCII_7)
+            decoder_state = DS_PARAM3;
+        else
+            decoder_state = DS_NORMAL;
+    }
+    else if (decoder_state == DS_PARAM3)
+    {
+        param3 = c;
+        if (param3 >= ASCII_SPACE && param3 <= ASCII_O)
+        {
+            int row = param2 - ASCII_SPACE + 1;
+            int col = param3 - ASCII_SPACE + 1;
+            adm3a_set_cursor_position (row, col);
+        }
+        
+        decoder_state = DS_NORMAL;
     }
 
     /* move cursor and screen if necessary */
@@ -138,19 +222,5 @@ void adm3a_put_character (char c)
     {
         adm3a_scroll_down ();
         cursor.y = TERM_ROWS;
-    }
-}
-
-/* this is essentially our most important function in the emulation - it receives
-   data from the host and updates internal states (text content, cursor ...) */
-void adm3a_receive (char c)
-{
-    switch (decoder_state)
-    {
-        case DS_NORMAL:
-            adm3a_put_character (c);
-            break;
-        default:
-            break;
     }
 }
