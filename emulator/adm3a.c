@@ -155,6 +155,7 @@ void adm3a_process_character (char c)
             case ASCII_SUB:
                 /* clear screen */
                 adm3a_clear_screen ();
+                adm3a_set_cursor_position (1, 1);
                 break;
 
             case ASCII_ESC:
@@ -185,7 +186,7 @@ void adm3a_process_character (char c)
     else if (decoder_state == DS_PARAM1)
     {
         param1 = c;
-        if (param1 == '=')
+        if (param1 == '=' || param1 == 'G')
             decoder_state = DS_PARAM2;
         else
             decoder_state = DS_NORMAL;
@@ -193,8 +194,15 @@ void adm3a_process_character (char c)
     else if (decoder_state == DS_PARAM2)
     {
         param2 = c;
-        if (param2 >= ASCII_SPACE && param2 <= ASCII_7)
+        /* are we processing a cursor set? */
+        if (param1 == '=' && param2 >= ASCII_SPACE && param2 <= ASCII_7)
             decoder_state = DS_PARAM3;
+        else if (param1 == 'G')
+        {
+            /* we are processing a set video attribute */
+            fprintf (stdout, "set video attribute = [%c]\n", param2);
+            decoder_state = DS_NORMAL;
+        }
         else
             decoder_state = DS_NORMAL;
     }
