@@ -41,19 +41,24 @@
 #define ASCII_RS        0x1E        /* CTRL-^; Record separator */
 #define ASCII_US        0x1F        /* CTRL-_; Unit separator */
 #define ASCII_SPACE     0x20
-#define ASCII_TILDE     0x7E
-#define ASCII_DEL       0x7F
+#define ASCII_EXCLAM    0x21
 
 #define ASCII_7         0x37        /* Symbol '7' */
+#define ASCII_9         0x39        /* Symbol '9' */
+#define ASCII_UPPER_S   0x53        /* Symbol 'S' */
 #define ASCII_O         0x70        /* Symbol 'O' */
+
+#define ASCII_TILDE     0x7E
+#define ASCII_DEL       0x7F
 
 enum DecoderState
 {
     DS_NORMAL,              /* we are just processing ASCII printable chars */
     DS_ESCAPE,              /* we received an ESC character, so we entered control mode and wait for a parameter */
-    DS_PARAM1,              /* parameter 1 */
-    DS_PARAM2,
-    DS_PARAM3
+    DS_OPER_O_P1,
+    DS_OPER_G_P1,
+    DS_OPER_EQ_P1,          /* parameter 1 (row) of set cursor */
+    DS_OPER_EQ_P2           /* parameter 2 (column) of set cursor */ 
 };
 
 enum CellState
@@ -84,6 +89,9 @@ Cursor;
 extern Cell buffer[TERM_ROWS][TERM_COLUMNS];
 extern Cursor cursor;
 
+/* function pointer set elsewhere to perform a terminal bell */
+extern void (*adm3a_bell) (void);
+
 static bool adm3a_verify_input_range (int y, int x);
 
 void adm3a_initialize (void);
@@ -91,6 +99,12 @@ void adm3a_clear_screen (void);
 void adm3a_set_character (char c, int y, int x);
 void adm3a_set_cursor_position (int y, int x);
 
-void adm3a_process_character (char c);
+void adm3a_process_ascii (uint32_t c);
+void adm3a_process_escape (uint32_t c);
+void adm3a_process_operation_o (void);
+void adm3a_process_operation_g (void);
+void adm3a_process_operation_eq (void);
+
+void adm3a_eat (char c);
 
 #endif

@@ -4,7 +4,10 @@ Cell buffer[TERM_ROWS][TERM_COLUMNS];
 Cursor cursor;
 
 enum DecoderState decoder_state;
-char param1, param2, param3;
+uint32_t param1, param2;
+
+/* used for the terminal bell */
+void (*adm3a_bell) (void) = NULL;
 
 /* used for temporarily storing received control parameters from the host */
 char parameter1, parameter2;
@@ -101,134 +104,217 @@ void adm3a_scroll_down (void)
     }
 }
 
-/* process a single character in the ADM-3A emulation. These are the characters sent back
-   by the host process (e.g. RunCPM) as we are working in full-duplex mode */
-void adm3a_process_character (char c)
+void adm3a_process_ascii (uint32_t c)
 {
-    fprintf (stdout, "    inc: 0x%02X (%03d, [%c])\n", c, c, (c >= ASCII_SPACE && c <= ASCII_DEL) ? c : ' ');
-
-    if (decoder_state == DS_NORMAL)
+    switch (c)
     {
-        switch (c)
-        {
-            case ASCII_BEL:
-                /* sounds a audible tone in the terminal */
-                fprintf (stdout, "Ding Dong!\n");
-                break;
+        case ASCII_BEL:
+            /* produces some kind of terminal bell */
+            if (adm3a_bell)
+                adm3a_bell ();
+            break;
 
-            case ASCII_BS:
-                /* move cursor on column to the left */
-                if (cursor.x > 1)
-                    cursor.x--;
-                break;
+        case ASCII_BS:
+            /* move cursor on column to the left */
+            if (cursor.x > 1)
+                cursor.x--;
+            break;
 
-            case ASCII_LF:
-                /* move cursor down one row and remain in the same column */
-                cursor.y ++;
-                break;
+        case ASCII_LF:
+            /* move cursor down one row and remain in the same column */
+            cursor.y ++;
+            break;
 
-            case ASCII_VT:
-                /* move cursor up on row and remain in the same column */
-                if (cursor.y > 1)
-                    cursor.y --;
-                break;
+        case ASCII_VT:
+            /* move cursor up on row and remain in the same column */
+            if (cursor.y > 1)
+                cursor.y --;
+            break;
 
-            case ASCII_FF:
-                /* move cursor one column to the right */
-                if (cursor.x < TERM_COLUMNS)
-                    cursor.x ++;
-                break;
+        case ASCII_FF:
+            /* move cursor one column to the right */
+            cursor.x ++;
+            break;
 
-            case ASCII_CR:
-                /* move cursor to the first column of the current row */
-                cursor.x = 1;
-                break;
+        case ASCII_CR:
+            /* move cursor to the first column of the current row */
+            cursor.x = 1;
+            break;
 
-            case ASCII_SO:
-                /* not implemented */
-                break;
+        case ASCII_SO:
+            /* not implemented */
+            break;
 
-            case ASCII_SI:
-                /* not implemented */
-                break;
+        case ASCII_SI:
+            /* not implemented */
+            break;
 
-            case ASCII_SUB:
-                /* clear screen */
-                adm3a_clear_screen ();
-                adm3a_set_cursor_position (1, 1);
-                break;
+        case ASCII_SUB:
+            /* clear screen */
+            adm3a_clear_screen ();
+            adm3a_set_cursor_position (1, 1);
+            break;
 
-            case ASCII_ESC:
-                /* Command lead-in */
-                decoder_state = DS_PARAM1;
-                fprintf (stdout, "new state is ds_param1\n");
-                break;
+        case ASCII_ESC:
+            /* Command lead-in */
+            fprintf (stdout, "process_ascii: received ESCAPE, state is now DS_ESCAPE\n");
+            decoder_state = DS_ESCAPE;
+            break;
 
-            case ASCII_RS:
-                /* Move cursor to home position */
-                adm3a_set_cursor_position (1, 1);
-                break;
+        case ASCII_RS:
+            /* Move cursor to home position */
+            adm3a_set_cursor_position (1, 1);
+            break;
 
-            default:
-                /* we only set printable characters */
-                if (c >= ASCII_SPACE && c <= ASCII_TILDE)
-                {
-                    adm3a_set_character (c, cursor.y, cursor.x);
-                    cursor.x ++;
-                }
-                else
-                {
-                    fprintf (stdout, "non-printable character received: %02X (%03d)\n", c, c);
-                }
-                break;
-        }
-    }
-    else if (decoder_state == DS_PARAM1)
-    {
-        param1 = c;
-        if (param1 == '=' || param1 == 'G')
-            decoder_state = DS_PARAM2;
-        else
-            decoder_state = DS_NORMAL;
-    }
-    else if (decoder_state == DS_PARAM2)
-    {
-        param2 = c;
-        /* are we processing a cursor set? */
-        if (param1 == '=' && param2 >= ASCII_SPACE && param2 <= ASCII_7)
-            decoder_state = DS_PARAM3;
-        else if (param1 == 'G')
-        {
-            /* we are processing a set video attribute */
-            fprintf (stdout, "set video attribute = [%c]\n", param2);
-            decoder_state = DS_NORMAL;
-        }
-        else
-            decoder_state = DS_NORMAL;
-    }
-    else if (decoder_state == DS_PARAM3)
-    {
-        param3 = c;
-        if (param3 >= ASCII_SPACE && param3 <= ASCII_O)
-        {
-            int row = param2 - ASCII_SPACE + 1;
-            int col = param3 - ASCII_SPACE + 1;
-            adm3a_set_cursor_position (row, col);
-        }
-        
-        decoder_state = DS_NORMAL;
-    }
+        default:
+            /* we only set printable characters */
+            if (c >= ASCII_SPACE && c <= ASCII_TILDE)
+            {
+                adm3a_set_character (c, cursor.y, cursor.x);
+                cursor.x ++;
+            }
+            else
+            {
+                fprintf (stdout, "non-printable character received: %02X (%03d)\n", c, c);
+            }
+            break;
+    }   
 
-    /* move cursor and screen if necessary */
+    /* clamp cursor and scroll down screen if necessary */
     if (cursor.x > TERM_COLUMNS)
     {
         cursor.x = 1;
         cursor.y ++;
     }
 
+    if (cursor.x < 1)
+        cursor.x = 1;
+
     if (cursor.y > TERM_ROWS)
     {
         adm3a_scroll_down ();
         cursor.y = TERM_ROWS;
+    }
+
+    if (cursor.y < 1)
+        cursor.y = 1;
+}
+
+void adm3a_process_escape (uint32_t c)
+{
+    switch (c)
+    {
+        case '(':
+            fprintf (stdout, "not implemented: set foreground mode\n");
+            decoder_state = DS_NORMAL;
+            break;
+
+        case ')':
+            fprintf (stdout, "not implemented: set background mode\n");
+            decoder_state = DS_NORMAL;
+            break;
+
+        case '6':
+            fprintf (stdout, "not implemented: send to end of line, not implemented\n");
+            decoder_state = DS_NORMAL;
+            break;
+
+        case 'o':
+            fprintf (stdout, "process_escape: lead in is 'o', state is now DS_OPER_O_P1\n");
+            decoder_state = DS_OPER_O_P1;
+            break;
+
+        case 'G':
+            fprintf (stdout, "process_escape: lead in is 'G', state is now DS_OPER_G_P1\n");
+            decoder_state = DS_OPER_G_P1;
+            break;
+
+        case '=':
+            fprintf (stdout, "process_escape: lead in is '=', state is now DS_OPER_EQ_P1\n");
+            decoder_state = DS_OPER_EQ_P1;
+            break;
+
+        default:
+            fprintf (stdout, "process_escape: unknown lead in, switching back to DS_NORMAL\n");
+            decoder_state = DS_NORMAL;
+            break;
+    }
+}
+
+void adm3a_process_operation_o (void)
+{
+    /* param1 contains the operation to perform */
+
+    if (param1 == ASCII_EXCLAM) /* terminal reset */
+        adm3a_initialize ();
+    else if (param1 == ASCII_UPPER_S) /* set terminal to default conditions */
+        fprintf (stdout, "not implemented: reset terminal to default state\n");
+    else if (param1 == ASCII_9) /* send version information to host */
+        fprintf (stdout, "not implemented: send version information to host\n");
+}
+
+void adm3a_process_operation_g (void)
+{
+    /* param1 contains the graphics attribute we have to set */
+
+    fprintf (stdout, "not implemented: operation G to set graphics attributes (param=[%c])\n", param1);
+}
+
+void adm3a_process_operation_eq (void)
+{
+    /* here we already capture parameter 1 (row) and parameter 2 (column),
+       so we can simply set the cursor */
+
+    int row, column;
+
+    row = param1 - ASCII_SPACE + 1;
+    column = param2 - ASCII_SPACE + 1;
+
+    fprintf (stdout, "process_operation_eq: setting cursor to row: %d column: %d\n", row, column);
+
+    adm3a_set_cursor_position (row, column);
+}
+
+/* process a single character in the ADM-3A emulation. These are the characters sent back
+   by the host process (e.g. RunCPM) as we are working in full-duplex mode */
+void adm3a_eat (char c)
+{
+    // fprintf (stdout, "    inc: 0x%02X (%03d, [%c])\n", c, c, (c >= ASCII_SPACE && c <= ASCII_DEL) ? c : ' ');
+    switch (decoder_state)
+    {
+        case DS_NORMAL:
+            adm3a_process_ascii (c);
+            break;
+        case DS_ESCAPE:
+            fprintf (stdout, "eat: state is DS_ESCAPE, processing lead-in\n");
+            adm3a_process_escape (c);
+            break;
+        case DS_OPER_O_P1:
+            param1 = c;
+            fprintf (stdout, "eat: state is DS_OPER_O_P1, param1 = %03d (%c), processing\n", param1, param1);
+            adm3a_process_operation_o ();
+            decoder_state = DS_NORMAL;
+            break;
+        case DS_OPER_G_P1:
+            param1 = c;
+            fprintf (stdout, "eat: state is DS_OPER_G_P1, param1 = %03d (%c), processing\n", param1, param1);
+            adm3a_process_operation_g ();
+            decoder_state = DS_NORMAL;
+            break;
+        case DS_OPER_EQ_P1:
+            param1 = c;
+            fprintf (stdout, "eat: state is DS_OPER_O_P1, param1 is %03d, state is now DS_OPER_EQ_P2\n", param1);
+            decoder_state = DS_OPER_EQ_P2;
+            break;
+        case DS_OPER_EQ_P2:
+            param2 = c; 
+            fprintf (stdout, "eat: state is DS_OPER_O_P2, param2 is %03d, processing\n", param2);
+            adm3a_process_operation_eq ();
+            decoder_state = DS_NORMAL;
+            break;
+
+        default:
+            decoder_state = DS_NORMAL;
+            break;
     }
 }

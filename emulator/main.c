@@ -6,6 +6,7 @@
 #include "adm3a.h"
 #include "commandline.h"
 #include "pty_unix.h"
+#include "renderer.h"
 
 #define FRAMEBUFFER_BORDER_SIZE     4              /* border on every side; it's in client space, so it scales */
 
@@ -169,6 +170,8 @@ void render_cursor (void)
 void render_terminal (void)
 {
     int x, y;
+    RGBAColor clearColor;
+
     /* uint64_t start, end, duration;
 
     start = SDL_GetPerformanceCounter(); */
@@ -178,6 +181,12 @@ void render_terminal (void)
        issue */
     SDL_SetRenderTarget (renderer, framebuffer);
 
+    /* clear the framebuffer first (because of the border) */
+    clearColor = renderer_hex_to_rgba (cmdline.terminalBackground);
+    SDL_SetRenderDrawColor (renderer, clearColor.r, clearColor.g, clearColor.b, clearColor.a);
+    SDL_RenderClear (renderer);
+
+    /* draw all the symbols in the terminal matrix */
     for (y = 0; y < TERM_ROWS; y ++)
     {
         for (x = 0; x < TERM_COLUMNS; x ++)
@@ -272,6 +281,16 @@ bool handle_textinput (SDL_TextInputEvent *event)
 }
 
 /* #######################################################################
+   Terminal bell 
+   ####################################################################### */
+
+void terminal_bell (void)
+{
+    /* Ring the bell, but not implemented yet */
+    fprintf (stdout, "Terminal bell!\n");
+}
+
+/* #######################################################################
    Child process communication
    ####################################################################### */
 
@@ -292,7 +311,7 @@ bool processChildOutput (void)
         /* send the incoming data to the terminal */
         for (i = 0; i < (int) numRead; i ++)
         {
-            adm3a_process_character (inputBuffer[i]);
+            adm3a_eat (inputBuffer[i]);
         }
     }
     else if (numRead < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
@@ -336,6 +355,7 @@ int main (int argc, char **argv)
         return 1;
 
     adm3a_initialize ();
+    adm3a_bell = terminal_bell;
 
     if (SDL_InitSubSystem (SDL_INIT_VIDEO) == 0)
     {
