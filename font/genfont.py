@@ -9,6 +9,7 @@ import sys
 spacing = 0
 
 if len(sys.argv)<3:
+    print("FON -> DAT for ADAM-3 terminal emulator fonts");
     print("usage: "+sys.argv[0]+" in-file out-file")
     sys.exit(1)
 else:
@@ -16,18 +17,23 @@ else:
     outfile = open(sys.argv[2],"wb")
 
 # sanity checks
-if len(font.get().glyphs) != 256:
-    print("font need to have 256 defined glyphs")
-    sys.exit(1)
+numGlyphs = len (font.get().glyphs)
+print ("font has %d glyphs" % (numGlyphs))
 
 if font.get().cell_size != (8,16):
     print("font glyph must have a size of 8x16 pixels");
     sys.exit(1)
 
-# read all the glyphs as their text representation
+# read all the glyphs as their text representation. If the source font
+# is missing a glyph, we just use the space (0x20) as a replacement.
 glyphs = []
 for i in range(0,256):
-    glyphs.append(font.get().get_glyph(codepoint=i).as_text())
+    try:
+        glyph = font.get().get_glyph(codepoint=i)
+    except:
+        glyph = font.get().get_glyph(codepoint=0x20)
+
+    glyphs.append(glyph.as_text())
 
 # we want to have 16x16 glyphs in our atlas. Each glyph also contains 16 lines of ASCII data
 num_lines = 16
