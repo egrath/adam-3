@@ -3,8 +3,12 @@
 Cell buffer[TERM_ROWS][TERM_COLUMNS];
 Cursor cursor;
 
+/* State of the state machine for decoding sequences */
 enum DecoderState decoder_state;
 uint32_t param1, param2;
+
+/* State (normal, inverse, ...) of newly put characters */
+enum CellState cell_state;
 
 bool autonewline = true;
 
@@ -24,6 +28,9 @@ void adm3a_initialize (void)
 
     /* initial decoder state */
     decoder_state = DS_NORMAL;
+
+    /* initial cell state */
+    cell_state = CS_NORMAL;
 }
 
 /* clear the entire screen */
@@ -67,7 +74,7 @@ void adm3a_set_character (char c, int y, int x)
     buffer[y-1][x-1].content = c;
     buffer[y-1][x-1].x = x;
     buffer[y-1][x-1].y = y;
-    buffer[y-1][x-1].state = CS_NORMAL;    
+    buffer[y-1][x-1].state = cell_state;    
 }
 
 /* set the cursor to a new position */
@@ -212,12 +219,14 @@ void adm3a_process_escape (uint32_t c)
     switch (c)
     {
         case '(':
-            fprintf (stdout, "not implemented: set foreground mode\n");
+            fprintf (stdout, "adm3a: setting text attribute to foreground mode\n");
+            cell_state = CS_NORMAL;
             decoder_state = DS_NORMAL;
             break;
 
         case ')':
-            fprintf (stdout, "not implemented: set background mode\n");
+            fprintf (stdout, "adm3a: setting text attribute to background mode\n");
+            cell_state = CS_INVERSE;
             decoder_state = DS_NORMAL;
             break;
 
@@ -264,7 +273,32 @@ void adm3a_process_operation_g (void)
 {
     /* param1 contains the graphics attribute we have to set */
 
-    fprintf (stdout, "not implemented: operation G to set graphics attributes (param=[%c])\n", param1);
+    switch (param1)
+    {
+        case '0':
+            fprintf (stdout, "adm3a: ESC G 0, switching to normal video\n");
+            cell_state = CS_NORMAL;
+            break;
+
+        case '4':
+            fprintf (stdout, "adm3a: ESC G 4, switching to reverse video\n");
+            cell_state = CS_INVERSE;
+            break;
+
+        case '8':
+            fprintf (stdout, "adm3a: ESC G 8, switching to underline video\n");
+            cell_state = CS_UNDERLINE;
+            break;
+
+        case '<':
+            fprintf (stdout, "adm3: ESC G <, switching to underline reverse video\n");
+            cell_state = CS_INVERSE | CS_UNDERLINE;
+            break;
+
+        default:
+            fprintf (stdout, "adm3a: not implemented: operation G to set graphics attributes (param=[%c])\n", param1);
+            break;
+    }
 }
 
 void adm3a_process_operation_eq (void)

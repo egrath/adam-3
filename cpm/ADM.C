@@ -13,18 +13,34 @@
  * ## ADM-3A control functions                           ##
  * ######################################################## */
 
-void clear_screen ()
+void cls ()
 {
 	fprintf (stdout, "%c", ASCII_SUB);
 }
 
-void set_cursor_at (row, column)
+void cursor (row, column)
 int row;
 int column;
 {
 	fprintf (stdout, "%c=%c%c", ASCII_ESC, row+0x20-1,column+0x20-1);
 }
 
+void t_bg ()
+{
+	fprintf (stdout, "%c%c", ASCII_ESC, ')');
+}
+
+void t_fg ()
+{
+	fprintf (stdout, "%c%c", ASCII_ESC, '(');
+}
+
+void wait ()
+{
+	cursor (TERM_ROWS,25);
+	fprintf (stdout, "Press any key to continue ...");
+	getchar ();
+}
 
 /* ########################################################
  * ## TESTS                                              ##
@@ -34,35 +50,62 @@ void test01 ()
 {
 	int i;
 	
-	clear_screen ();
+	cls ();
 	
 	for (i=1; i <= TERM_ROWS; i ++)
 	{
-		set_cursor_at (i, 1);
+		cursor (i, 1);
 		fprintf (stdout, "%02d:",i);
 	}
 	
-	set_cursor_at (5, 20);
+	cursor (5, 20);
 	fprintf (stdout, "This should be at row 5, column 20");
 }
 
 void test02 ()
 {
-	clear_screen ();
+	cls ();
+	
+	cursor (3, 5);
+	fprintf (stdout, "Normaler Text ");
+	t_bg ();
+	fprintf (stdout, "Inverser Text");
+	t_fg ();
+	fprintf (stdout, " Normaler Text");
 }
 
-void wait_next ()
+void test03 ()
 {
-	set_cursor (TERM_ROWS,25);
-	fprintf (stdout, "Press any key to continue ...");
-	getchar ();
-	clear_screen ();
+	cls ();
+	
+	cursor (3,5);
+	fprintf (stdout, "%c%c%d", ASCII_ESC, 'G', 0);
+	fprintf (stdout, "Normaler Text");
+	
+	cursor (5,15);
+	fprintf (stdout, "%c%c%d", ASCII_ESC, 'G', 4);
+	fprintf (stdout, "Inverser Text");
+	
+	cursor (7,25);
+	fprintf (stdout, "%c%c%d", ASCII_ESC, 'G', 8);
+	fprintf (stdout, "Unterstrichener Text");
+	
+	cursor (9,35);
+	fprintf (stdout, "%c%c%c", ASCII_ESC, 'G', '<');
+	fprintf (stdout, "Unterstrichener und Inverser Text");
+	
+	fprintf (stdout, "%c%c%d", ASCII_ESC, 'G', 0);
 }
 
 main()
 {
+	/*
 	test01 ();
-	wait_next ();
+	wait ();
 	test02 ();
-	wait_next ();
+	wait ();
+	*/
+	
+	test03 ();
+	wait ();
 }

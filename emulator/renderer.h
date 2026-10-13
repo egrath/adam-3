@@ -19,12 +19,11 @@
 bool render_initialize (void);
 void render_cleanup (void);
 
-void render_char (unsigned char c, int y, int x);
-void render_cursor (void);
+void render_cell (Cell *c);
 void render_terminal (void);
 void render_framebuffer (void);
 void update_framebuffer_rect (void);
 
-SDL_Texture * load_fontatlas (RGBAColor foreground, RGBAColor background);
+SDL_Texture * build_fontatlas (void);
 
 #endif

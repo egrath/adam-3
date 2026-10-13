@@ -66,7 +66,7 @@ enum CellState
     CS_NORMAL       = 1,
     CS_BLANK        = 2,
     CS_BLINK        = 4,
-    CS_REVERSE      = 8,
+    CS_INVERSE      = 8,
     CS_UNDERLINE    = 16,
     CS_REDUCED      = 32,
     CS_GRAPHICS     = 64

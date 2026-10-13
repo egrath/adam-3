@@ -1,3 +1,10 @@
+/*
+ * SDL3 based renderer.
+ * general approach is to create a framebuffer which holds enough space for the 
+ * 80x24 glyphs and a border. The content of the 80x24 matrix is rendererd
+ * to this framebuffer at the display refresh rate and then rendered to
+ * the display in a aspect correct manner
+ */
 #include "renderer.h"
 
 SDL_Renderer *renderer;
@@ -5,56 +12,71 @@ SDL_Window *window;
 SDL_Texture *framebuffer;
 SDL_FRect framebufferRenderRect;
 
-SDL_Texture *fontNormal;        /* this is the font normally used */
-SDL_Texture *fontInverted;      /* this is for inverted text */
-SDL_Texture *fontCursor;        /* this is just for where to cursor is */
+SDL_Texture *fontAtlas;     /* this stores our font */
 
-/* render a single char to the proper position in our framebuffer using ADM-3A
-   coordinates: row from 1 to 24 and column from 1 to 80 */ 
-void render_char (unsigned char c, int y, int x)
+/* render a single cell (a position in the 80x24 terminal matrix) including all 
+   it's attributes to the framebuffer */
+void render_cell (Cell *c)
 {
     SDL_FRect sourceRect, destRect;
+    bool is_cursor = false;
+    RGBAColor render_fg, render_bg;
+
+    /* is this cell the cursor? */
+    if (cursor.y == c->y && cursor.x == c->x)
+        is_cursor = true;
 
     /* where in the atlas is our glyph? */
     sourceRect.w = (float) 8;
     sourceRect.h = (float) 16;
-    sourceRect.x = (float) ((c % 16 ) * 8);
-    sourceRect.y = (float) ((c / 16 ) * 16);
+    sourceRect.x = (float) ((c->content % 16 ) * 8);
+    sourceRect.y = (float) ((c->content / 16 ) * 16);
 
     /* where do we have to place the glyph? */
     destRect.w = (float) 8;
     destRect.h = (float) 16;
-    destRect.x = (float) ((x-1) * 8) + FRAMEBUFFER_BORDER_SIZE;
-    destRect.y = (float) ((y-1) * 16) + FRAMEBUFFER_BORDER_SIZE;
+    destRect.x = (float) ((c->x -1) * 8) + FRAMEBUFFER_BORDER_SIZE;
+    destRect.y = (float) ((c->y -1) * 16) + FRAMEBUFFER_BORDER_SIZE;
 
-    /* Blit the character to the screen */
-    SDL_RenderTexture (renderer, fontNormal, &sourceRect, &destRect);
-}
+    /* determine the colors we need to use */
+    if (is_cursor)
+    {
+        render_fg = config.cursor_foreground;
+        render_bg = config.cursor_background;
+    }
+    else
+    {
+        /* per default, we use the configured foreground and background colors */
+        render_bg = config.terminal_background;
+        render_fg = config.terminal_foreground;
+        
+        /* but, if we have reverse video, we switch that */
+        if ((c->state & CS_INVERSE) == CS_INVERSE)
+        {
+            render_bg = config.terminal_foreground;
+            render_fg = config.terminal_background;
+        }
+    }
 
-/* render the cursor at the current position. Very similar to rendering
-   a regular character */
-void render_cursor (void)
-{
-    SDL_FRect sourceRect, destRect;
-    char c;
+    /* Draw the background of the cell */
+    SDL_SetRenderDrawColor (renderer, render_bg.r, render_bg.g, render_bg.b, 255);
+    SDL_RenderFillRect (renderer, &destRect);
 
-    /* which char is at the current cursor position? */
-    c = buffer[cursor.y-1][cursor.x-1].content;
+    /* And blit the (colored) glyph */
+    SDL_SetTextureColorMod (fontAtlas, render_fg.r, render_fg.g, render_fg.b);
+    SDL_RenderTexture (renderer, fontAtlas, &sourceRect, &destRect);
 
-    /* where in the atlas is our glyph? */
-    sourceRect.w = (float) 8;
-    sourceRect.h = (float) 16;
-    sourceRect.x = (float) ((c % 16 ) * 8);
-    sourceRect.y = (float) ((c / 16 ) * 16);  
-
-    /* where do we have to place the glyph? */
-    destRect.w = (float) 8;
-    destRect.h = (float) 16;
-    destRect.x = (float) ((cursor.x-1) * 8) + FRAMEBUFFER_BORDER_SIZE;
-    destRect.y = (float) ((cursor.y-1) * 16) + FRAMEBUFFER_BORDER_SIZE;
-
-    /* Blit the character to the screen */
-    SDL_RenderTexture (renderer, fontCursor, &sourceRect, &destRect);
+    /* Underline if necessary */
+    if ((c->state & CS_UNDERLINE) == CS_UNDERLINE)
+    {
+        SDL_FRect barRect;
+        barRect.x = destRect.x;
+        barRect.y = destRect.y + destRect.h - 2;
+        barRect.w = destRect.w;
+        barRect.h = 1;
+        SDL_SetRenderDrawColor (renderer, render_fg.r, render_fg.g, render_fg.b, 255);
+        SDL_RenderFillRect (renderer, &barRect);
+    }
 }
 
 /* render the content of the whole terminal buffer to the framebuffer */
@@ -82,11 +104,11 @@ void render_terminal (void)
     {
         for (x = 0; x < TERM_COLUMNS; x ++)
         {
-            render_char (buffer[y][x].content, y+1, x+1);
+            render_cell (&(buffer[y][x]));
         }
     }
 
-    render_cursor ();
+    //render_cursor ();
 
     /* Switch back the render target to the display */
     SDL_SetRenderTarget (renderer, NULL);
@@ -137,7 +159,7 @@ bool render_initialize (void)
     SDL_SetRenderDrawColor (renderer, 0, 0, 0, 255);
     SDL_SetRenderVSync (renderer, SDL_RENDERER_VSYNC_DISABLED);
 
-    /* create our framebuffer */
+    /* create our framebuffer - we just use a XRGB8888 surface, we don't need a alpha channel here */
     framebuffer = SDL_CreateTexture (renderer, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_TARGET, fbWidth, fbHeight);
     if (framebuffer == NULL)
     {
@@ -152,18 +174,14 @@ bool render_initialize (void)
 
     SDL_StartTextInput (window);
 
-    /* load font atlas textures for the different font kinds used */
-    #ifdef DEBUG
-    fprintf (stdout, "DEBUG: terminal foreground=%08X background=%08X\n",
-        rgba_to_uint32 (config.terminal_foreground),
-        rgba_to_uint32 (config.terminal_background));
-    #endif
-    if ((fontNormal = load_fontatlas (config.terminal_foreground, config.terminal_background)) == NULL)
+    /* build the font atlas */
+    if ((fontAtlas = build_fontatlas ()) == NULL)
+    {
+        #ifdef DEBUG
+        fprintf (stderr, "DEBUG: failed to build font atlas\n");
+        #endif
         return false;
-    if ((fontInverted = load_fontatlas (config.terminal_background, config.terminal_foreground)) == NULL)
-        return false;
-    if ((fontCursor = load_fontatlas (config.cursor_foreground, config.cursor_background)) == NULL)
-        return false;
+    }
 
     return true;
 }
@@ -194,28 +212,25 @@ void update_framebuffer_rect (void)
     framebufferRenderRect.y = (window_h - framebufferRenderRect.h) / 2;
 }
 
-SDL_Texture * load_fontatlas (RGBAColor foreground, RGBAColor background)
+/*
+ * builds a white on transparent glyph atlas from the font dat file 
+ */
+SDL_Texture * build_fontatlas (void)
 {
     SDL_Texture *atlas;
     FILE *input;
     uint32_t *pixels;
     int pitch;
     
-    uint32_t glyphPixel, foregroundColor, backgroundColor;
+    uint32_t glyphPixel;
     unsigned char c;
 
     uint64_t start, end, duration;
 
     start = SDL_GetPerformanceCounter ();
 
-    foregroundColor = rgba_to_uint32 (foreground);
-    backgroundColor= rgba_to_uint32 (background);
-
-    #ifdef DEBUG
-    fprintf (stdout, "DEBUG: load_fontatlas with fg=%08X bg=%08X\n", foregroundColor, backgroundColor);
-    #endif
-
-    atlas = SDL_CreateTexture (renderer, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING, 128, 256);
+    /* we need a alpha channel, so we use a ARGB8888 surface */
+    atlas = SDL_CreateTexture (renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 128, 256);
     if (atlas == NULL)
     {
         fprintf (stderr, "SDL_CreateTexture failed: %s (%s, %d)\n", SDL_GetError(), __FILE__, __LINE__);
@@ -234,9 +249,9 @@ SDL_Texture * load_fontatlas (RGBAColor foreground, RGBAColor background)
     {
         fread (&c, 1, 1, input);
         if (c=='.') 
-            glyphPixel = backgroundColor;
+            glyphPixel = 0x00000000;
         else if (c=='@')
-            glyphPixel = foregroundColor;
+            glyphPixel = 0xFFFFFFFF;
         else
             continue;
 
@@ -246,6 +261,7 @@ SDL_Texture * load_fontatlas (RGBAColor foreground, RGBAColor background)
 
     fclose (input);
     SDL_UnlockTexture (atlas);
+    SDL_SetTextureBlendMode (atlas, SDL_BLENDMODE_BLEND);
 
     #ifdef DEBUG
     SDL_Surface *s;
@@ -253,7 +269,7 @@ SDL_Texture * load_fontatlas (RGBAColor foreground, RGBAColor background)
     {
         fprintf (stderr, "SDL_LockTextureToSurface failed: %s\n", SDL_GetError());
     }
-    SDL_SavePNG (s, "test.png");
+    SDL_SavePNG (s, "font.png");
     #endif
 
     /* profiling */
