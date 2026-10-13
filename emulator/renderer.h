@@ -8,8 +8,8 @@
 #include <SDL3/SDL.h>
 
 #include "adm3a.h"
-#include "commandline.h"
 #include "helper.h"
+#include "config.h"
 
 #define FRAMEBUFFER_BORDER_SIZE     4              /* border on every side; it's in client space, so it scales */
 
@@ -25,6 +25,6 @@ void render_terminal (void);
 void render_framebuffer (void);
 void update_framebuffer_rect (void);
 
-SDL_Texture * load_fontatlas (uint32_t foreground, uint32_t background);
+SDL_Texture * load_fontatlas (RGBAColor foreground, RGBAColor background);
 
 #endif

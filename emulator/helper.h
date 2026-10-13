@@ -13,6 +13,7 @@ typedef struct
     uint8_t a;
 } RGBAColor;
 
-RGBAColor renderer_hex_to_rgba (uint32_t argb);
+RGBAColor uint32_to_rgba (uint32_t argb);
+uint32_t rgba_to_uint32 (RGBAColor color);
 
 #endif

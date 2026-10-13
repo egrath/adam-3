@@ -6,6 +6,8 @@ Cursor cursor;
 enum DecoderState decoder_state;
 uint32_t param1, param2;
 
+bool autonewline = true;
+
 /* used for the terminal bell */
 void (*adm3a_bell) (void) = NULL;
 
@@ -183,8 +185,13 @@ void adm3a_process_ascii (uint32_t c)
     /* clamp cursor and scroll down screen if necessary */
     if (cursor.x > TERM_COLUMNS)
     {
-        cursor.x = 1;
-        cursor.y ++;
+        if (autonewline)
+        {
+            cursor.x = 1;
+            cursor.y ++;
+        }
+        else
+            cursor.x = TERM_COLUMNS;
     }
 
     if (cursor.x < 1)

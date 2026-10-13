@@ -1,6 +1,6 @@
 #include "helper.h"
 
-RGBAColor renderer_hex_to_rgba (uint32_t argb)
+RGBAColor uint32_to_rgba (uint32_t argb)
 {
     RGBAColor color;
 
@@ -10,4 +10,17 @@ RGBAColor renderer_hex_to_rgba (uint32_t argb)
     color.b = (argb & 0x000000FF);
 
     return color;
+}
+
+uint32_t rgba_to_uint32 (RGBAColor color)
+{
+    uint32_t argb;
+
+    argb = 0x00;
+    argb |= (color.a << 24);
+    argb |= (color.r << 16);
+    argb |= (color.g << 8);
+    argb |= (color.b);
+    
+    return argb;
 }

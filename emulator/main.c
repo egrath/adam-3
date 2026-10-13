@@ -7,6 +7,7 @@
 #include "commandline.h"
 #include "pty_unix.h"
 #include "renderer.h"
+#include "config.h"
 
 char lastKeyCodeSent;
 
@@ -142,6 +143,9 @@ int main (int argc, char **argv)
     double duration, left;
 
     int run = true;
+
+    if (!config_init ())
+        return 1;
 
     if (!parseCommandlineParameters (argc, argv))
         return 1;

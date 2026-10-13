@@ -73,7 +73,7 @@ void render_terminal (void)
     SDL_SetRenderTarget (renderer, framebuffer);
 
     /* clear the framebuffer first (because of the border) */
-    clearColor = renderer_hex_to_rgba (cmdline.terminalBackground);
+    clearColor = config.terminal_background;
     SDL_SetRenderDrawColor (renderer, clearColor.r, clearColor.g, clearColor.b, clearColor.a);
     SDL_RenderClear (renderer);
 
@@ -154,13 +154,15 @@ bool render_initialize (void)
 
     /* load font atlas textures for the different font kinds used */
     #ifdef DEBUG
-    fprintf (stdout, "DEBUG: terminal foreground=%08X background=%08X\n", cmdline.terminalForeground, cmdline.terminalBackground);
+    fprintf (stdout, "DEBUG: terminal foreground=%08X background=%08X\n",
+        rgba_to_uint32 (config.terminal_foreground),
+        rgba_to_uint32 (config.terminal_background));
     #endif
-    if ((fontNormal = load_fontatlas (cmdline.terminalForeground, cmdline.terminalBackground)) == NULL)
+    if ((fontNormal = load_fontatlas (config.terminal_foreground, config.terminal_background)) == NULL)
         return false;
-    if ((fontInverted = load_fontatlas (cmdline.terminalBackground, cmdline.terminalForeground)) == NULL)
+    if ((fontInverted = load_fontatlas (config.terminal_background, config.terminal_foreground)) == NULL)
         return false;
-    if ((fontCursor = load_fontatlas (cmdline.cursorForeground, cmdline.cursorBackground)) == NULL)
+    if ((fontCursor = load_fontatlas (config.cursor_foreground, config.cursor_background)) == NULL)
         return false;
 
     return true;
@@ -192,19 +194,26 @@ void update_framebuffer_rect (void)
     framebufferRenderRect.y = (window_h - framebufferRenderRect.h) / 2;
 }
 
-SDL_Texture * load_fontatlas (uint32_t foreground, uint32_t background)
+SDL_Texture * load_fontatlas (RGBAColor foreground, RGBAColor background)
 {
     SDL_Texture *atlas;
     FILE *input;
     uint32_t *pixels;
     int pitch;
     
-    uint32_t glyphPixel;
+    uint32_t glyphPixel, foregroundColor, backgroundColor;
     unsigned char c;
 
     uint64_t start, end, duration;
 
     start = SDL_GetPerformanceCounter ();
+
+    foregroundColor = rgba_to_uint32 (foreground);
+    backgroundColor= rgba_to_uint32 (background);
+
+    #ifdef DEBUG
+    fprintf (stdout, "DEBUG: load_fontatlas with fg=%08X bg=%08X\n", foregroundColor, backgroundColor);
+    #endif
 
     atlas = SDL_CreateTexture (renderer, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING, 128, 256);
     if (atlas == NULL)
@@ -225,9 +234,9 @@ SDL_Texture * load_fontatlas (uint32_t foreground, uint32_t background)
     {
         fread (&c, 1, 1, input);
         if (c=='.') 
-            glyphPixel = background;
+            glyphPixel = backgroundColor;
         else if (c=='@')
-            glyphPixel = foreground;
+            glyphPixel = foregroundColor;
         else
             continue;
 
