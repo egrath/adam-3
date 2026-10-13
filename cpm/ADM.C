@@ -42,6 +42,12 @@ void wait ()
 	getchar ();
 }
 
+void header ()
+{
+	cursor (1, 26);
+	fprintf (stdout, "ADM-3A control sequence tester");
+}
+
 /* ########################################################
  * ## TESTS                                              ##
  * ######################################################## */
@@ -51,6 +57,7 @@ void test01 ()
 	int i;
 	
 	cls ();
+	header();
 	
 	for (i=1; i <= TERM_ROWS; i ++)
 	{
@@ -65,18 +72,7 @@ void test01 ()
 void test02 ()
 {
 	cls ();
-	
-	cursor (3, 5);
-	fprintf (stdout, "Normaler Text ");
-	t_bg ();
-	fprintf (stdout, "Inverser Text");
-	t_fg ();
-	fprintf (stdout, " Normaler Text");
-}
-
-void test03 ()
-{
-	cls ();
+	header();
 	
 	cursor (3,5);
 	fprintf (stdout, "%c%c%d", ASCII_ESC, 'G', 0);
@@ -97,15 +93,72 @@ void test03 ()
 	fprintf (stdout, "%c%c%d", ASCII_ESC, 'G', 0);
 }
 
+void test03 ()
+{
+	cls();
+	header();
+	
+	cursor (3,5);
+	fprintf (stdout, "%c%c%d", ASCII_ESC, 'G', 2);
+	fprintf (stdout, "Normal Blinkend");
+	
+	cursor (5,5);
+	fprintf (stdout, "%c%c%d", ASCII_ESC, 'G', 6);
+	fprintf (stdout, "Invers Blinkend");
+	
+	cursor (7,5);
+	fprintf (stdout, "%c%c%c", ASCII_ESC, 'G', ':');
+	fprintf (stdout, "Unterstrichen Blinkend");
+	
+	cursor (9,5);
+	fprintf (stdout, "%c%c%c", ASCII_ESC, 'G', '>');
+	fprintf (stdout, "Unterstrichen Invers Blinkend");
+
+	fprintf (stdout, "%c%c%d", ASCII_ESC, 'G', 0);
+}
+
+void test04 ()
+{
+	int i, col, row;
+	
+	cls ();
+	header ();
+	
+	row = 5, col = 5;
+	
+	cursor (row,col);
+	for (i=32; i < 32+64; i++)
+	{
+		cursor (row,col);
+		
+		fprintf (stdout, "%c%c%c", ASCII_ESC, 'G', '0');
+		fprintf (stdout, "%03d=[", i);
+		fprintf (stdout, "%c%c%c", ASCII_ESC, 'G', 'P');
+		fprintf (stdout, "%c", i);
+		fprintf (stdout, "%c%c%c", ASCII_ESC, 'G', '0');
+		fprintf (stdout, "]");
+		
+		row ++;
+		if (((i+1) % 8) == 0)
+		{
+			row = 5;
+			col += 8;
+		}
+	}		
+}
+
 main()
 {
-	/*
+
 	test01 ();
 	wait ();
+	
 	test02 ();
-	wait ();
-	*/
+	wait ();;
 	
 	test03 ();
+	wait ();
+
+	test04 ();
 	wait ();
 }

@@ -14,6 +14,8 @@ SDL_FRect framebufferRenderRect;
 
 SDL_Texture *fontAtlas;     /* this stores our font */
 
+bool render_blink_attribute = true;
+
 /* render a single cell (a position in the 80x24 terminal matrix) including all 
    it's attributes to the framebuffer */
 void render_cell (Cell *c)
@@ -22,6 +24,9 @@ void render_cell (Cell *c)
     bool is_cursor = false;
     RGBAColor render_fg, render_bg;
 
+    /* map to either the regular glyph or the graphic drawing one */
+    unsigned char glyph = ((c->state & CS_GRAPHICS) == CS_GRAPHICS) ? c->content+129 : c->content;
+
     /* is this cell the cursor? */
     if (cursor.y == c->y && cursor.x == c->x)
         is_cursor = true;
@@ -29,8 +34,8 @@ void render_cell (Cell *c)
     /* where in the atlas is our glyph? */
     sourceRect.w = (float) 8;
     sourceRect.h = (float) 16;
-    sourceRect.x = (float) ((c->content % 16 ) * 8);
-    sourceRect.y = (float) ((c->content / 16 ) * 16);
+    sourceRect.x = (float) ((glyph % 16 ) * 8);
+    sourceRect.y = (float) ((glyph / 16 ) * 16);
 
     /* where do we have to place the glyph? */
     destRect.w = (float) 8;
@@ -62,7 +67,11 @@ void render_cell (Cell *c)
     SDL_SetRenderDrawColor (renderer, render_bg.r, render_bg.g, render_bg.b, 255);
     SDL_RenderFillRect (renderer, &destRect);
 
-    /* And blit the (colored) glyph */
+    /* if cell has blinking attribute set, check if we should render it or not */
+    if ((c->state & CS_BLINK) == CS_BLINK && !render_blink_attribute)
+        return;
+
+    /* Blit the (colored) glyph */
     SDL_SetTextureColorMod (fontAtlas, render_fg.r, render_fg.g, render_fg.b);
     SDL_RenderTexture (renderer, fontAtlas, &sourceRect, &destRect);
 
@@ -282,6 +291,19 @@ SDL_Texture * build_fontatlas (void)
 
     return atlas;
 }
+
+// This is called at a frequency of 1/2 hz to update the blinking text state
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
+uint32_t blinky_callback (void *userdata, SDL_TimerID timerID, Uint32 interval)
+{
+    /* toggle blink text rendering */
+    render_blink_attribute = !render_blink_attribute;
+
+    /* call again in 500 ms */
+    return 500;
+}
+#pragma clang diagnostic pop
 
 /* render the framebuffer to the window */
 void render_framebuffer (void)

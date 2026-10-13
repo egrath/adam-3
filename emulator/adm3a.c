@@ -280,9 +280,19 @@ void adm3a_process_operation_g (void)
             cell_state = CS_NORMAL;
             break;
 
+        case '2':
+            fprintf (stdout, "adm3a: ESC G 2, switching to blinking video\n");
+            cell_state = CS_BLINK;
+            break;
+
         case '4':
             fprintf (stdout, "adm3a: ESC G 4, switching to reverse video\n");
             cell_state = CS_INVERSE;
+            break;
+
+        case '6':
+            fprintf (stdout, "adm3a: ESC G6, switching to reverse blinking video\n");
+            cell_state = CS_INVERSE | CS_BLINK;
             break;
 
         case '8':
@@ -290,9 +300,24 @@ void adm3a_process_operation_g (void)
             cell_state = CS_UNDERLINE;
             break;
 
+        case ':':
+            fprintf (stdout, "adm3a: ESC G :, switching to underline blinking video\n");
+            cell_state = CS_UNDERLINE | CS_BLINK;
+            break;
+
         case '<':
             fprintf (stdout, "adm3: ESC G <, switching to underline reverse video\n");
             cell_state = CS_INVERSE | CS_UNDERLINE;
+            break;
+
+        case '>':
+            fprintf (stdout, "adm3: ESC G >, switching to underline reverse blinking video\n");
+            cell_state = CS_INVERSE | CS_UNDERLINE | CS_BLINK;
+            break;
+
+        case 'P':
+            fprintf (stdout, "adm3: ESC G P, switching to graphics mode\n");
+            cell_state = CS_GRAPHICS;
             break;
 
         default:
