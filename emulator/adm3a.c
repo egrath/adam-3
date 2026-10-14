@@ -129,6 +129,12 @@ void adm3a_process_ascii (uint32_t c)
                 cursor.x--;
             break;
 
+        case ASCII_HT:
+            /* horizontal tab */
+            if (cursor.x < (TERM_COLUMNS - TABSIZE))
+                cursor.x = ((cursor.x - 1) / TABSIZE + 1) * TABSIZE + 1;
+            break;
+
         case ASCII_LF:
             /* move cursor down one row and remain in the same column */
             cursor.y ++;

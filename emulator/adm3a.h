@@ -51,6 +51,8 @@
 #define ASCII_TILDE     0x7E
 #define ASCII_DEL       0x7F
 
+#define TABSIZE         8
+
 enum DecoderState
 {
     DS_NORMAL,              /* we are just processing ASCII printable chars */
