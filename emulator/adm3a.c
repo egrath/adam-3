@@ -326,6 +326,21 @@ void adm3a_process_operation_g (void)
             cell_state = CS_GRAPHICS;
             break;
 
+        case 'R':
+            fprintf (stdout, "adm3: ESC G R, switching to graphics blinky mode\n");
+            cell_state = CS_GRAPHICS | CS_BLINK;
+            break;
+
+        case 'T':
+            fprintf (stdout, "adm3: ESC G T, switching to inverse graphics mode\n");
+            cell_state = CS_GRAPHICS | CS_INVERSE;
+            break;
+
+        case 'V':
+            fprintf (stdout, "adm3: ESC G V, switching to inverse graphics blinky mode\n");
+            cell_state = CS_GRAPHICS | CS_INVERSE | CS_BLINK;
+            break;
+
         default:
             fprintf (stdout, "adm3a: not implemented: operation G to set graphics attributes (param=[%c])\n", param1);
             break;

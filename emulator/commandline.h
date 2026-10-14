@@ -13,6 +13,8 @@ typedef struct
     char *processWorkingDir;
     char **processParameters;
     int numProcessParameters;
+
+    bool fullscreen;
 } Commandline;
 
 extern Commandline cmdline;

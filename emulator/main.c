@@ -14,6 +14,8 @@ char lastKeyCodeSent;
 bool processChildInput (char c);
 bool processChildOutput (void);
 
+static int run = true;
+
 /* #######################################################################
    Keyboard and Input handling
    ####################################################################### */
@@ -33,6 +35,35 @@ void send_ascii (char code)
 
 bool handle_keydown (SDL_KeyboardEvent *event)
 {
+    /* first process special keyboard combinations handled by the application itself */
+    if ((event->mod & SDL_KMOD_CTRL) && (event->mod & SDL_KMOD_ALT))
+    {
+        switch (event->key)
+        {
+            case SDLK_PAGEUP:
+                render_set_fullscreen (true);
+                break;
+
+            case SDLK_PAGEDOWN:
+                render_set_fullscreen (false);
+                break;
+
+            case SDLK_Q:
+                run = false;
+                break;
+
+            case SDLK_R:
+                stopProcess ();
+                startProcess (TERM_ROWS, TERM_COLUMNS);
+                break;
+
+            default:
+                break;
+        }
+
+        return true;
+    }
+
     /* we have to send CTRL-xxx combinations to the slave, e.g. Ctrl-A = 1, Ctrl-B = 2, ... */
     if ((event->mod & SDL_KMOD_LCTRL) || (event->mod & SDL_KMOD_RCTRL))
     {
@@ -142,15 +173,13 @@ int main (int argc, char **argv)
     uint64_t start, end;
     double duration, left;
 
-    int run = true;
-
     if (!config_init ())
         return 1;
 
     if (!parseCommandlineParameters (argc, argv))
         return 1;
 
-    if (!render_initialize ())
+    if (!render_initialize (cmdline.fullscreen))
         return 1;
 
     adm3a_initialize ();

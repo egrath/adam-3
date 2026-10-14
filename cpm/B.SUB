@@ -1,3 +1,6 @@
+era adm.o
+era adm.asm
+era adm.com
 E:cc -i0/e: adm.c
 E:as adm.asm
 E:ln adm.o E:c.lib

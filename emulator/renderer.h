@@ -16,8 +16,10 @@
 #define FONT_WIDTH                  8
 #define FONT_HEIGHT                 16
 
-bool render_initialize (void);
+bool render_initialize (bool fullscreen);
 void render_cleanup (void);
+
+void render_set_fullscreen (bool fullscreen);
 
 void render_cell (Cell *c);
 void render_terminal (void);

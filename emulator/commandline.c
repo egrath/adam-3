@@ -6,6 +6,7 @@ static void printHelp (void)
 {
     fprintf (stdout, "ADAM-3 Terminal emulator\n\n");
     fprintf (stdout, "parameters:\n");
+    fprintf (stdout, "    -f                        Start in fullscreen mode\n");
     fprintf (stdout, "    -p <process>              Process to start\n");
     fprintf (stdout, "   [-w <directory>]           Working directory for process\n");
     fprintf (stdout, "    -- <param 1 ... param n>  Pass parameter 1 to n to the child\n");
@@ -44,6 +45,8 @@ bool parseCommandlineParameters (int argc, char **argv)
     int argIndex, parIndex;
     int childParameterIndex = -1;
 
+    cmdline.fullscreen = false;
+
     if (argc >= 2)
     {
         for (argIndex = 1; argIndex < argc && childParameterIndex == -1; argIndex ++)
@@ -55,6 +58,10 @@ bool parseCommandlineParameters (int argc, char **argv)
                     case 'h':
                         printHelp ();
                         return false;
+                        break;
+
+                    case 'f':
+                        cmdline.fullscreen = true;
                         break;
 
                     case 'w': /* working directory for child process */

@@ -42,22 +42,25 @@ void wait ()
 	getchar ();
 }
 
-void header ()
+void header (s)
+char *s;
 {
-	cursor (1, 26);
-	fprintf (stdout, "ADM-3A control sequence tester");
+	cursor (1, 10);
+	if (s!=NULL)
+		fprintf (stdout, "ADM-3A control sequence tester: %s", s);
 }
 
 /* ########################################################
  * ## TESTS                                              ##
  * ######################################################## */
 
-void test01 ()
+void test01 (s)
+char *s;
 {
 	int i;
 	
 	cls ();
-	header();
+	header(s);
 	
 	for (i=1; i <= TERM_ROWS; i ++)
 	{
@@ -69,10 +72,11 @@ void test01 ()
 	fprintf (stdout, "This should be at row 5, column 20");
 }
 
-void test02 ()
+void test02 (s)
+char *s;
 {
 	cls ();
-	header();
+	header(s);
 	
 	cursor (3,5);
 	fprintf (stdout, "%c%c%d", ASCII_ESC, 'G', 0);
@@ -93,10 +97,11 @@ void test02 ()
 	fprintf (stdout, "%c%c%d", ASCII_ESC, 'G', 0);
 }
 
-void test03 ()
+void test03 (s)
+char *s;
 {
 	cls();
-	header();
+	header(s);
 	
 	cursor (3,5);
 	fprintf (stdout, "%c%c%d", ASCII_ESC, 'G', 2);
@@ -117,12 +122,13 @@ void test03 ()
 	fprintf (stdout, "%c%c%d", ASCII_ESC, 'G', 0);
 }
 
-void test04 ()
+void test04 (s)
+char *s;
 {
 	int i, col, row;
 	
 	cls ();
-	header ();
+	header (s);
 	
 	row = 5, col = 5;
 	
@@ -147,18 +153,120 @@ void test04 ()
 	}		
 }
 
+void test05 (s)
+char *s;
+{
+	int i, col, row;
+	
+	cls ();
+	header (s);
+	
+	row = 5, col = 5;
+	
+	cursor (row,col);
+	for (i=32; i < 32+64; i++)
+	{
+		cursor (row,col);
+		
+		fprintf (stdout, "%c%c%c", ASCII_ESC, 'G', '0');
+		fprintf (stdout, "%03d=[", i);
+		fprintf (stdout, "%c%c%c", ASCII_ESC, 'G', 'R');
+		fprintf (stdout, "%c", i);
+		fprintf (stdout, "%c%c%c", ASCII_ESC, 'G', '0');
+		fprintf (stdout, "]");
+		
+		row ++;
+		if (((i+1) % 8) == 0)
+		{
+			row = 5;
+			col += 8;
+		}
+	}		
+}
+
+void test06 (s)
+char *s;
+{
+	int i, col, row;
+	
+	cls ();
+	header (s);
+	
+	row = 5, col = 5;
+	
+	cursor (row,col);
+	for (i=32; i < 32+64; i++)
+	{
+		cursor (row,col);
+		
+		fprintf (stdout, "%c%c%c", ASCII_ESC, 'G', '0');
+		fprintf (stdout, "%03d=[", i);
+		fprintf (stdout, "%c%c%c", ASCII_ESC, 'G', 'T');
+		fprintf (stdout, "%c", i);
+		fprintf (stdout, "%c%c%c", ASCII_ESC, 'G', '0');
+		fprintf (stdout, "]");
+		
+		row ++;
+		if (((i+1) % 8) == 0)
+		{
+			row = 5;
+			col += 8;
+		}
+	}		
+}
+
+void test07 (s)
+char *s;
+{
+	int i, col, row;
+	
+	cls ();
+	header (s);
+	
+	row = 5, col = 5;
+	
+	cursor (row,col);
+	for (i=32; i < 32+64; i++)
+	{
+		cursor (row,col);
+		
+		fprintf (stdout, "%c%c%c", ASCII_ESC, 'G', '0');
+		fprintf (stdout, "%03d=[", i);
+		fprintf (stdout, "%c%c%c", ASCII_ESC, 'G', 'V');
+		fprintf (stdout, "%c", i);
+		fprintf (stdout, "%c%c%c", ASCII_ESC, 'G', '0');
+		fprintf (stdout, "]");
+		
+		row ++;
+		if (((i+1) % 8) == 0)
+		{
+			row = 5;
+			col += 8;
+		}
+	}		
+}
+
+
 main()
 {
-
-	test01 ();
+	test01 ("cursor positioning");
 	wait ();
 	
-	test02 ();
+	test02 ("text attributes 1");
 	wait ();;
 	
-	test03 ();
+	test03 ("text attributes 2");
 	wait ();
 
-	test04 ();
+	test04 ("graphics mode");
+	wait ();
+
+	test05 ("graphics blinky mode");
+	wait ();
+
+	test06 ("graphics inverse mode");
+	wait ();
+
+	test07 ("graphics inverse blinky mode");
 	wait ();
 }

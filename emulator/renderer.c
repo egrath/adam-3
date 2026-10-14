@@ -131,7 +131,7 @@ void render_terminal (void)
     */
 }
 
-bool render_initialize (void)
+bool render_initialize (bool fullscreen)
 {
     SDL_WindowFlags flags;
     int fbWidth, fbHeight;
@@ -151,7 +151,10 @@ bool render_initialize (void)
         return false;
     }
 
+    /* create the window, if specified in fullscreen mode */
     flags = SDL_WINDOW_RESIZABLE;
+    if (fullscreen)
+        flags |= SDL_WINDOW_FULLSCREEN;
     if ((window = SDL_CreateWindow ("ADAM-3", fbWidth*2, fbHeight*2, flags)) == NULL)
     {
         fprintf (stderr, "SDL_CreateWindow failed: %s (%s, %d)\n", SDL_GetError(), __FILE__, __LINE__);
@@ -308,7 +311,11 @@ uint32_t blinky_callback (void *userdata, SDL_TimerID timerID, Uint32 interval)
 /* render the framebuffer to the window */
 void render_framebuffer (void)
 {
+    /* set draw color and clear the renderer (e.g. clear the window)  */
+    SDL_SetRenderDrawColor (renderer, config.terminal_background.r, config.terminal_background.g, config.terminal_background.b, 255);
     SDL_RenderClear (renderer);
+
+    /* now render our framebuffer texture to the display and show it */
     SDL_RenderTexture (renderer, framebuffer, NULL, &framebufferRenderRect);
     SDL_RenderPresent (renderer);
 }
@@ -317,4 +324,10 @@ void render_cleanup (void)
 {
     /* clean up */
     SDL_StopTextInput (window);
+}
+
+/* enable / disable fullscreen mode */
+void render_set_fullscreen (bool fullscreen)
+{
+    SDL_SetWindowFullscreen (window, fullscreen);
 }
