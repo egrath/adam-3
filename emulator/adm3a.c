@@ -1,3 +1,9 @@
+/* 
+ * please note that all operations work in logical coordinate mode:
+ * rows: 1 .. TERM_ROWS
+ * cols: 1 .. TERM_COLUMNS
+ * however, the buffer is in 0-index mode!
+ */
 #include "adm3a.h"
 
 Cell buffer[TERM_ROWS][TERM_COLUMNS];
@@ -125,10 +131,6 @@ void adm3a_scroll_down (void)
     }
 }
 
-void adm3a_insert_space_and_shift_right (void)
-{
-}
-
 void adm3a_process_ascii (uint32_t c)
 {
     switch (c)
@@ -188,7 +190,9 @@ void adm3a_process_ascii (uint32_t c)
 
         case ASCII_ESC:
             /* Command lead-in */
+            #ifdef DEBUG
             fprintf (stdout, "process_ascii: received ESCAPE, state is now DS_ESCAPE\n");
+            #endif
             decoder_state = DS_ESCAPE;
             break;
 
@@ -206,7 +210,7 @@ void adm3a_process_ascii (uint32_t c)
             }
             else
             {
-                fprintf (stdout, "non-printable character received: %02X (%03d)\n", c, c);
+                fprintf (stdout, "WARNING: non-handled and non-printable character received: %02X (%03d)\n", c, c);
             }
             break;
     }   
@@ -242,34 +246,46 @@ void adm3a_process_escape (uint32_t c)
     {
         /* ADM-3A Escape Sequences */
         case '(':
+            #ifdef DEBUG
             fprintf (stdout, "adm3a: setting text attribute to foreground mode\n");
+            #endif
             cell_state = CS_NORMAL;
             decoder_state = DS_NORMAL;
             break;
 
         case ')':
+            #ifdef DEBUG
             fprintf (stdout, "adm3a: setting text attribute to background mode\n");
+            #endif
             cell_state = CS_INVERSE;
             decoder_state = DS_NORMAL;
             break;
 
         case '6':
+            #ifdef DEBUG
             fprintf (stdout, "not implemented: send to end of line, not implemented\n");
+            #endif
             decoder_state = DS_NORMAL;
             break;
 
         case 'o':
+            #ifdef DEBUG
             fprintf (stdout, "process_escape: lead in is 'o', state is now DS_OPER_O_P1\n");
+            #endif
             decoder_state = DS_OPER_O_P1;
             break;
 
         case 'G':
+            #ifdef DEBUG
             fprintf (stdout, "process_escape: lead in is 'G', state is now DS_OPER_G_P1\n");
+            #endif
             decoder_state = DS_OPER_G_P1;
             break;
 
         case '=':
+            #ifdef DEBUG
             fprintf (stdout, "process_escape: lead in is '=', state is now DS_OPER_EQ_P1\n");
+            #endif
             decoder_state = DS_OPER_EQ_P1;
             break;
 
@@ -279,26 +295,34 @@ void adm3a_process_escape (uint32_t c)
         case ASCII_ASTERISK:
         case ASCII_PLUS:
         case ASCII_SEMICOLON:
+            #ifdef DEBUG
             fprintf (stdout, "adm31: clear screen, home cursor\n");
+            #endif
             adm3a_clear_screen ();
             adm3a_set_cursor_position (1, 1);
             decoder_state = DS_NORMAL;
             break;
 
         case ASCII_UPPER_E:
+            #ifdef DEBUG
             fprintf (stdout, "adm31: insert line\n");
+            #endif
             adm31_insert_line ();
             decoder_state = DS_NORMAL;
             break;
 
         case ASCII_UPPER_R:
+            #ifdef DEBUG
             fprintf (stdout, "adm31: delete line\n");
+            #endif
             adm31_delete_line ();
             decoder_state = DS_NORMAL;
             break;
 
         case ASCII_UPPER_T:
+            #ifdef DEBUG
             fprintf (stdout, "adm31: clear from cursor to end of line\n");
+            #endif
             adm3a_clear_range (
                 (Cursor) { .y = cursor.y, .x = cursor.x },
                 (Cursor) { .y = cursor.y, .x = TERM_COLUMNS }
@@ -307,7 +331,9 @@ void adm3a_process_escape (uint32_t c)
             break;
 
         case ASCII_UPPER_Y:
+            #ifdef DEBUG
             fprintf (stdout, "adm31: clear from cursor to end of screen\n");
+            #endif
             adm3a_clear_range (
                 (Cursor) { .y = cursor.y, .x = cursor.x },
                 (Cursor) { .y = cursor.y, .x = TERM_COLUMNS }
@@ -320,7 +346,7 @@ void adm3a_process_escape (uint32_t c)
             break;
 
         default:
-            fprintf (stdout, "process_escape: unknown lead (%03d, [%c]) in, switching back to DS_NORMAL\n", c, c);
+            fprintf (stdout, "adm3a: unknown lead (%03d, [%c]) in, switching back to DS_NORMAL\n", c, c);
             decoder_state = DS_NORMAL;
             break;
     }
@@ -345,62 +371,86 @@ void adm3a_process_operation_g (void)
     switch (param1)
     {
         case '0':
+            #ifdef DEBUG
             fprintf (stdout, "adm3a: ESC G 0, switching to normal video\n");
+            #endif
             cell_state = CS_NORMAL;
             break;
 
         case '2':
+            #ifdef DEBUG
             fprintf (stdout, "adm3a: ESC G 2, switching to blinking video\n");
+            #endif
             cell_state = CS_BLINK;
             break;
 
         case '4':
+            #ifdef DEBUG
             fprintf (stdout, "adm3a: ESC G 4, switching to reverse video\n");
+            #endif
             cell_state = CS_INVERSE;
             break;
 
         case '6':
+            #ifdef DEBUG
             fprintf (stdout, "adm3a: ESC G6, switching to reverse blinking video\n");
+            #endif
             cell_state = CS_INVERSE | CS_BLINK;
             break;
 
         case '8':
+            #ifdef DEBUG
             fprintf (stdout, "adm3a: ESC G 8, switching to underline video\n");
+            #endif
             cell_state = CS_UNDERLINE;
             break;
 
         case ':':
+            #ifdef DEBUG
             fprintf (stdout, "adm3a: ESC G :, switching to underline blinking video\n");
+            #endif
             cell_state = CS_UNDERLINE | CS_BLINK;
             break;
 
         case '<':
+            #ifdef DEBUG
             fprintf (stdout, "adm3: ESC G <, switching to underline reverse video\n");
+            #endif
             cell_state = CS_INVERSE | CS_UNDERLINE;
             break;
 
         case '>':
+            #ifdef DEBUG
             fprintf (stdout, "adm3: ESC G >, switching to underline reverse blinking video\n");
+            #endif
             cell_state = CS_INVERSE | CS_UNDERLINE | CS_BLINK;
             break;
 
         case 'P':
+            #ifdef DEBUG
             fprintf (stdout, "adm3: ESC G P, switching to graphics mode\n");
+            #endif
             cell_state = CS_GRAPHICS;
             break;
 
         case 'R':
+            #ifdef DEBUG
             fprintf (stdout, "adm3: ESC G R, switching to graphics blinky mode\n");
+            #endif
             cell_state = CS_GRAPHICS | CS_BLINK;
             break;
 
         case 'T':
+            #ifdef DEBUG
             fprintf (stdout, "adm3: ESC G T, switching to inverse graphics mode\n");
+            #endif
             cell_state = CS_GRAPHICS | CS_INVERSE;
             break;
 
         case 'V':
+            #ifdef DEBUG
             fprintf (stdout, "adm3: ESC G V, switching to inverse graphics blinky mode\n");
+            #endif
             cell_state = CS_GRAPHICS | CS_INVERSE | CS_BLINK;
             break;
 
@@ -420,7 +470,9 @@ void adm3a_process_operation_eq (void)
     row = param1 - ASCII_SPACE + 1;
     column = param2 - ASCII_SPACE + 1;
 
+    #ifdef DEBUG
     fprintf (stdout, "process_operation_eq: setting cursor to row: %d column: %d\n", row, column);
+    #endif
 
     adm3a_set_cursor_position (row, column);
 }
@@ -436,29 +488,39 @@ void adm3a_eat (char c)
             adm3a_process_ascii (c);
             break;
         case DS_ESCAPE:
+            #ifdef DEBUG
             fprintf (stdout, "eat: state is DS_ESCAPE, processing lead-in\n");
+            #endif
             adm3a_process_escape (c);
             break;
         case DS_OPER_O_P1:
             param1 = c;
+            #ifdef DEBUG
             fprintf (stdout, "eat: state is DS_OPER_O_P1, param1 = %03d (%c), processing\n", param1, param1);
+            #endif
             adm3a_process_operation_o ();
             decoder_state = DS_NORMAL;
             break;
         case DS_OPER_G_P1:
             param1 = c;
+            #ifdef DEBUG
             fprintf (stdout, "eat: state is DS_OPER_G_P1, param1 = %03d (%c), processing\n", param1, param1);
+            #endif
             adm3a_process_operation_g ();
             decoder_state = DS_NORMAL;
             break;
         case DS_OPER_EQ_P1:
             param1 = c;
+            #ifdef DEBUG
             fprintf (stdout, "eat: state is DS_OPER_O_P1, param1 is %03d, state is now DS_OPER_EQ_P2\n", param1);
+            #endif
             decoder_state = DS_OPER_EQ_P2;
             break;
         case DS_OPER_EQ_P2:
             param2 = c; 
+            #ifdef DEBUG
             fprintf (stdout, "eat: state is DS_OPER_O_P2, param2 is %03d, processing\n", param2);
+            #endif
             adm3a_process_operation_eq ();
             decoder_state = DS_NORMAL;
             break;
@@ -501,7 +563,6 @@ void adm31_delete_line (void)
     for (sr = cursor.y+1; sr <= TERM_ROWS; sr++)
     {
         dr = sr-1;
-        fprintf (stdout, "copying from row %d to row %d\n", sr, dr);
         for (col = 1; col <= TERM_COLUMNS; col ++)
         {
             buffer[dr-1][col-1] = buffer[sr-1][col-1];

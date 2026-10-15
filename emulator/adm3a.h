@@ -49,6 +49,7 @@
 #define ASCII_7         0x37        /* Symbol '7' */
 #define ASCII_9         0x39        /* Symbol '9' */
 #define ASCII_SEMICOLON 0x3B        /* Symbol ';' */
+#define ASCII_QUESTION  0x3F
 #define ASCII_UPPER_E   0x45
 #define ASCII_UPPER_Q   0x51
 #define ASCII_UPPER_R   0x52        

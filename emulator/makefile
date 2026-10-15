@@ -1,5 +1,5 @@
 CC      = cc
-CFLAGS  = -c -std=c99 -Wall -Wextra -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -pedantic-errors -g -DDEBUG
+CFLAGS  = -c -std=c99 -Wall -Wextra -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -pedantic-errors -g -DNO_DEBUG
 LDFLAGS = 
 
 SRCDIR  = .
