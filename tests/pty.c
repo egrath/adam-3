@@ -20,7 +20,7 @@
 
 struct termios old_termios;
 
-int ptyMasterOpen (char *slaveName, size_t len)
+int pty_master_open (char *slaveName, size_t len)
 {
     int masterFd;
     char *p;
@@ -61,13 +61,13 @@ int ptyMasterOpen (char *slaveName, size_t len)
     return masterFd;
 }
 
-pid_t ptyFork (int *masterFd, struct termios *slaveTermios, const struct winsize *slaveWs)
+pid_t pty_fork (int *masterFd, struct termios *slaveTermios, const struct winsize *slaveWs)
 {
     int mfd, slaveFd;
     pid_t childPid;
     char slaveName[MAX_SLAVE_NAME];
 
-    mfd = ptyMasterOpen (slaveName, MAX_SLAVE_NAME);
+    mfd = pty_master_open (slaveName, MAX_SLAVE_NAME);
     if (mfd == -1)
         return -1;
 
@@ -131,7 +131,7 @@ pid_t ptyFork (int *masterFd, struct termios *slaveTermios, const struct winsize
     return 0;
 }
 
-void enableRawMode (void)
+void enable_raw_mode (void)
 {
     struct termios raw;
 
@@ -159,7 +159,7 @@ void enableRawMode (void)
     tcsetattr (STDIN_FILENO, TCSANOW, &raw);
 }
 
-void disableRawMode (void)
+void disable_raw_mode (void)
 {
     tcsetattr (STDIN_FILENO, TCSANOW, &old_termios);
 }
@@ -182,7 +182,7 @@ int main (int argc, char **argv)
     /* get current window size */
     ioctl (STDIN_FILENO, TIOCGWINSZ, &ws);
 
-    childPid = ptyFork (&masterFd, &termiosOri, &ws);
+    childPid = pty_fork (&masterFd, &termiosOri, &ws);
     if (childPid == -1)
     {
         fprintf (stderr, "ptyFork() failed\n");
@@ -198,7 +198,7 @@ int main (int argc, char **argv)
     fprintf (stdout, "my child process has the pid %d\n\r", childPid);
 
     /* only the parent gets here */
-    enableRawMode ();
+    enable_raw_mode ();
 
     /* make the PTY and stdin non blocking */
     fcntl (masterFd, F_SETFL, O_NONBLOCK);
@@ -228,6 +228,6 @@ int main (int argc, char **argv)
             finished = true;
     }
 
-    disableRawMode ();
+    disable_raw_mode ();
     fprintf (stdout, "\n\rmaster is terminating\n");
 }

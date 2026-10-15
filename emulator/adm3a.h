@@ -43,9 +43,18 @@
 #define ASCII_SPACE     0x20
 #define ASCII_EXCLAM    0x21
 
+#define ASCII_ASTERISK  0x2A
+#define ASCII_PLUS      0x2B
+
 #define ASCII_7         0x37        /* Symbol '7' */
 #define ASCII_9         0x39        /* Symbol '9' */
+#define ASCII_SEMICOLON 0x3B        /* Symbol ';' */
+#define ASCII_UPPER_E   0x45
+#define ASCII_UPPER_Q   0x51
+#define ASCII_UPPER_R   0x52        
 #define ASCII_UPPER_S   0x53        /* Symbol 'S' */
+#define ASCII_UPPER_T   0x54        /* Symbol 'T' */
+#define ASCII_UPPER_Y   0x59        /* Symbol 'Y' */
 #define ASCII_O         0x70        /* Symbol 'O' */
 
 #define ASCII_TILDE     0x7E
@@ -98,6 +107,7 @@ static bool adm3a_verify_input_range (int y, int x);
 
 void adm3a_initialize (void);
 void adm3a_clear_screen (void);
+void adm3a_clear_range (Cursor from, Cursor to);
 void adm3a_set_character (char c, int y, int x);
 void adm3a_set_cursor_position (int y, int x);
 
@@ -108,5 +118,8 @@ void adm3a_process_operation_g (void);
 void adm3a_process_operation_eq (void);
 
 void adm3a_eat (char c);
+
+void adm31_insert_line (void);
+void adm31_delete_line (void);
 
 #endif

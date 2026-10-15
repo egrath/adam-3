@@ -16,7 +16,7 @@ struct termios old_termios;
  * references:
  *     - Kilo Editor (https://viewsourcecode.org/snaptoken/kilo/02.enteringRawMode.html)
  *     - The Linux Programming Interface book */   
-void enableRawMode (void)
+void enable_raw_mode (void)
 {
     struct termios raw;
 
@@ -44,7 +44,7 @@ void enableRawMode (void)
     tcsetattr (STDIN_FILENO, TCSANOW, &raw);
 }
 
-void disableRawMode (void)
+void disable_raw_mode (void)
 {
     tcsetattr (STDIN_FILENO, TCSANOW, &old_termios);
 }
@@ -53,7 +53,7 @@ int main (int argc, char **argv)
 {
     int character = 0, count = 0;
 
-    enableRawMode();
+    enable_raw_mode();
 
     while (character != 0x20) /* stop when space is received */
     {
@@ -66,7 +66,7 @@ int main (int argc, char **argv)
             fprintf (stdout, " ");
     }
 
-    disableRawMode();
+    disable_raw_mode();
 
     return 0;
 }

@@ -33,15 +33,18 @@ void adm3a_initialize (void)
     cell_state = CS_NORMAL;
 }
 
-/* clear the entire screen */
-void adm3a_clear_screen (void)
+/* clear a range from the screen */
+void adm3a_clear_range (Cursor from, Cursor to)
 {
     int x, y;
 
-    /* clear terminal buffer */
-    for (y = 0; y < TERM_ROWS; y ++)
+    if (!adm3a_verify_input_range (from.y, from.x) ||
+        !adm3a_verify_input_range (to.y, to.x))
+        return;
+
+    for (y = from.y-1; y < to.y; y ++)
     {
-        for (x = 0; x < TERM_COLUMNS; x ++)
+        for (x = from.x-1; x < to.x; x ++)
         {
             buffer[y][x].content = ' ';
             buffer[y][x].state = CS_BLANK;
@@ -49,6 +52,15 @@ void adm3a_clear_screen (void)
             buffer[y][x].y = y + 1;
         }
     }
+}
+
+/* clear the entire screen */
+void adm3a_clear_screen (void)
+{
+    adm3a_clear_range (
+        (Cursor) {.y=1, .x=1},
+        (Cursor) {.y=TERM_ROWS, .x=TERM_COLUMNS}
+    );
 }
 
 /* verify if given coordinates are within our visible range */
@@ -111,6 +123,10 @@ void adm3a_scroll_down (void)
         buffer[TERM_ROWS-1][col].state = CS_BLANK;
         buffer[TERM_ROWS-1][col].content = ' '; 
     }
+}
+
+void adm3a_insert_space_and_shift_right (void)
+{
 }
 
 void adm3a_process_ascii (uint32_t c)
@@ -224,6 +240,7 @@ void adm3a_process_escape (uint32_t c)
 {
     switch (c)
     {
+        /* ADM-3A Escape Sequences */
         case '(':
             fprintf (stdout, "adm3a: setting text attribute to foreground mode\n");
             cell_state = CS_NORMAL;
@@ -256,8 +273,54 @@ void adm3a_process_escape (uint32_t c)
             decoder_state = DS_OPER_EQ_P1;
             break;
 
+        /* now we handle some special ESC sequences which are not officially specified by the ADM-3A manual,
+           but are often used in the CP/M world, even with specific ADM-3A drivers. It's because some software
+           uses ADM-31 escape sequences falsly with the ADM-3A driver */
+        case ASCII_ASTERISK:
+        case ASCII_PLUS:
+        case ASCII_SEMICOLON:
+            fprintf (stdout, "adm31: clear screen, home cursor\n");
+            adm3a_clear_screen ();
+            adm3a_set_cursor_position (1, 1);
+            decoder_state = DS_NORMAL;
+            break;
+
+        case ASCII_UPPER_E:
+            fprintf (stdout, "adm31: insert line\n");
+            adm31_insert_line ();
+            decoder_state = DS_NORMAL;
+            break;
+
+        case ASCII_UPPER_R:
+            fprintf (stdout, "adm31: delete line\n");
+            adm31_delete_line ();
+            decoder_state = DS_NORMAL;
+            break;
+
+        case ASCII_UPPER_T:
+            fprintf (stdout, "adm31: clear from cursor to end of line\n");
+            adm3a_clear_range (
+                (Cursor) { .y = cursor.y, .x = cursor.x },
+                (Cursor) { .y = cursor.y, .x = TERM_COLUMNS }
+            );
+            decoder_state = DS_NORMAL;
+            break;
+
+        case ASCII_UPPER_Y:
+            fprintf (stdout, "adm31: clear from cursor to end of screen\n");
+            adm3a_clear_range (
+                (Cursor) { .y = cursor.y, .x = cursor.x },
+                (Cursor) { .y = cursor.y, .x = TERM_COLUMNS }
+            );
+            adm3a_clear_range (
+                (Cursor) { .y = cursor.y+1, .x = 1 },
+                (Cursor) { .y = TERM_ROWS, .x = TERM_COLUMNS }
+            );
+            decoder_state = DS_NORMAL;
+            break;
+
         default:
-            fprintf (stdout, "process_escape: unknown lead in, switching back to DS_NORMAL\n");
+            fprintf (stdout, "process_escape: unknown lead (%03d, [%c]) in, switching back to DS_NORMAL\n", c, c);
             decoder_state = DS_NORMAL;
             break;
     }
@@ -404,4 +467,53 @@ void adm3a_eat (char c)
             decoder_state = DS_NORMAL;
             break;
     }
+}
+
+void adm31_insert_line (void)
+{
+    int sr, dr, col;
+
+    /* copy from the second to last row down */
+    for (sr = TERM_ROWS-1; sr >= cursor.y; sr --)
+    {
+        dr = sr+1;
+        for (col = 1; col <= TERM_COLUMNS; col ++)
+        {
+            buffer[dr-1][col-1] = buffer[sr-1][col-1];
+            buffer[dr-1][col-1].y++;
+        }
+    }
+
+    /* clear the line with the cursor */
+    adm3a_clear_range(
+        (Cursor) { .y = cursor.y, .x = 1 },
+        (Cursor) { .y = cursor.y, .x = TERM_COLUMNS} );
+
+    /* move cursor to proper position */
+    adm3a_set_cursor_position (cursor.y, 1);
+}
+
+void adm31_delete_line (void)
+{
+    int sr, dr, col;
+
+    /* copy from the second to last row down */
+    for (sr = cursor.y+1; sr <= TERM_ROWS; sr++)
+    {
+        dr = sr-1;
+        fprintf (stdout, "copying from row %d to row %d\n", sr, dr);
+        for (col = 1; col <= TERM_COLUMNS; col ++)
+        {
+            buffer[dr-1][col-1] = buffer[sr-1][col-1];
+            buffer[dr-1][col-1].y--;
+        }
+    }
+
+    /* clear the line with the cursor */
+    adm3a_clear_range(
+        (Cursor) { .y = TERM_ROWS, .x = 1 },
+        (Cursor) { .y = TERM_ROWS, .x = TERM_COLUMNS} );
+
+    /* move cursor to proper position */
+    adm3a_set_cursor_position (cursor.y, 1);
 }

@@ -19,8 +19,8 @@ typedef struct
 
 extern Commandline cmdline;
 
-static void printHelp (void);
-static char * buildAbsolutePath (char *relative);
-bool parseCommandlineParameters (int argc, char **argv);
+static void print_help (void);
+static char * build_absolute_path (char *relative);
+bool parse_commandline (int argc, char **argv);
 
 #endif

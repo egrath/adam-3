@@ -11,8 +11,8 @@
 
 char lastKeyCodeSent;
 
-bool processChildInput (char c);
-bool processChildOutput (void);
+bool process_child_input (char c);
+bool process_child_output (void);
 
 static int run = true;
 
@@ -30,38 +30,48 @@ void send_ascii (char code)
     lastKeyCodeSent = code;
 
     /* send it to our child */
-    processChildInput (code);
+    process_child_input (code);
 }
 
 bool handle_keydown (SDL_KeyboardEvent *event)
 {
-    /* first process special keyboard combinations handled by the application itself */
-    if ((event->mod & SDL_KMOD_CTRL) && (event->mod & SDL_KMOD_ALT))
+    /* we use the F-Keys for our control and also for some convenience stuff */
+    switch (event->key)
     {
-        switch (event->key)
-        {
-            case SDLK_PAGEUP:
-                render_set_fullscreen (true);
-                break;
+        case SDLK_F5:
+            cmdline.fullscreen = !cmdline.fullscreen;
+            render_set_fullscreen (cmdline.fullscreen);
+            break;
 
-            case SDLK_PAGEDOWN:
-                render_set_fullscreen (false);
-                break;
+        case SDLK_F11:
+            stop_process ();
+            start_process ();
+            break;
 
-            case SDLK_Q:
-                run = false;
-                break;
+        case SDLK_F12:
+            run = false;
+            break;
 
-            case SDLK_R:
-                stopProcess ();
-                startProcess (TERM_ROWS, TERM_COLUMNS);
-                break;
+        /* cursor control sends WordStar Diamond */
+        case SDLK_UP:
+            /* Ctrl-E */
+            send_ascii (0x5);
+            break;
 
-            default:
-                break;
-        }
+        case SDLK_DOWN:
+            /* Ctrl-X */
+            send_ascii (0x18);
+            break;
 
-        return true;
+        case SDLK_LEFT:
+            /* Ctrl-S */
+            send_ascii (0x13);
+            break;
+
+        case SDLK_RIGHT:
+            /* Ctrl-D */
+            send_ascii (0x4);
+            break;
     }
 
     /* we have to send CTRL-xxx combinations to the slave, e.g. Ctrl-A = 1, Ctrl-B = 2, ... */
@@ -130,14 +140,16 @@ void terminal_bell (void)
    Child process communication
    ####################################################################### */
 
-bool processChildOutput (void)
+/* data from the child process to the terminal */
+bool process_child_output (void)
 {
     ssize_t numRead;
     char inputBuffer[PTY_BUFFER_SIZE];
     int i;
 
     /* check if we received any data from the slave */
-    numRead = read (masterFd, inputBuffer, PTY_BUFFER_SIZE);
+    numRead = read_child (inputBuffer, PTY_BUFFER_SIZE);
+
     if (numRead > 0)
     {
         #ifdef DEBUG
@@ -156,14 +168,10 @@ bool processChildOutput (void)
     return true;
 }
 
-bool processChildInput (char c)
+/* from the terminal to the child process */
+bool process_child_input (char c)
 {
-    if (!isChildAlive ())
-        return false;
-
-    write (masterFd, &c, 1);
-
-    return true;
+    return write_child (&c, 1);
 }
 
 int main (int argc, char **argv)
@@ -176,7 +184,7 @@ int main (int argc, char **argv)
     if (!config_init ())
         return 1;
 
-    if (!parseCommandlineParameters (argc, argv))
+    if (!parse_commandline (argc, argv))
         return 1;
 
     if (!render_initialize (cmdline.fullscreen))
@@ -186,7 +194,7 @@ int main (int argc, char **argv)
     adm3a_bell = terminal_bell;
 
     /* start the child process running as our terminal client */
-    if (!startProcess (TERM_ROWS, TERM_COLUMNS))
+    if (!start_process ())
     {
         fprintf (stderr, "failed to run child process (%s, %d)\n", __FILE__, __LINE__);
         exit (1);
@@ -227,8 +235,8 @@ int main (int argc, char **argv)
         }
 
         /* read all incoming data from the started process */
-        if (isChildAlive ())
-            processChildOutput ();
+        if (is_child_alive ())
+            process_child_output ();
         else
             run = false;
 
@@ -249,7 +257,7 @@ int main (int argc, char **argv)
     }
 
     /* stop the child process */
-    stopProcess ();
+    stop_process ();
 
     render_cleanup ();
 }

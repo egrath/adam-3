@@ -246,6 +246,64 @@ char *s;
 	}		
 }
 
+void test08 (s)
+char *s;
+{
+	int i;
+
+	cls ();
+	header (s);
+
+	/* fill entire screen with numbers */
+	cursor (2,1);
+	for (i = 0; i < (23*80)-1; i++)
+		fprintf (stdout, "%d", (i % 10));
+
+	/* delete on line 5 column 10 to end of line */
+	cursor (5,10);
+	fprintf (stdout, "%cT", 0x1B);
+
+	/* delete whole last line */
+	cursor (24,1);
+	fprintf (stdout, "%cT", 0x1B);
+
+	/* delete from middle of the screen to end */
+	cursor (12,5);
+	fprintf (stdout, "%cY", 0x1B);
+}
+
+void test09 (s)
+char *s;
+{
+	cls ();
+	header (s);
+
+	cursor (5,5);
+	fprintf (stdout, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+	cursor (6,5);
+	fprintf (stdout, "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB");
+
+	fprintf (stdout, "%cE", 0x1B);
+}
+
+void test10 (s)
+char *s;
+{
+	cls ();
+	header (s);
+
+	cursor (5,5);
+	fprintf (stdout, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+	cursor (6,5);
+	fprintf (stdout, "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB");
+	cursor (7,5);
+	fprintf (stdout, "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC");
+
+	cursor (6,5);
+
+	fprintf (stdout, "%cR", 0x1B);
+}
+
 
 main()
 {
@@ -268,5 +326,13 @@ main()
 	wait ();
 
 	test07 ("graphics inverse blinky mode");
+	wait ();
+
+	test08 ("CP/M special escape");
+
+	test09 ("ADM31 insert line");
+	wait ();
+
+	test10 ("ADM31 delete line");
 	wait ();
 }

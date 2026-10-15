@@ -2,7 +2,7 @@
 
 Commandline cmdline;
 
-static void printHelp (void)
+static void print_help (void)
 {
     fprintf (stdout, "ADAM-3 Terminal emulator\n\n");
     fprintf (stdout, "parameters:\n");
@@ -12,7 +12,7 @@ static void printHelp (void)
     fprintf (stdout, "    -- <param 1 ... param n>  Pass parameter 1 to n to the child\n");
 }
 
-static char * buildAbsolutePath (char *relative)
+static char * build_absolute_path (char *relative)
 {
     char *absolute;
     struct stat s;
@@ -40,7 +40,7 @@ static char * buildAbsolutePath (char *relative)
     return absolute;
 }
 
-bool parseCommandlineParameters (int argc, char **argv)
+bool parse_commandline (int argc, char **argv)
 {
     int argIndex, parIndex;
     int childParameterIndex = -1;
@@ -56,7 +56,7 @@ bool parseCommandlineParameters (int argc, char **argv)
                 switch (argv[argIndex][1])
                 {
                     case 'h':
-                        printHelp ();
+                        print_help ();
                         return false;
                         break;
 
@@ -67,7 +67,7 @@ bool parseCommandlineParameters (int argc, char **argv)
                     case 'w': /* working directory for child process */
                         if (argv[argIndex+1] != NULL)
                         {
-                            cmdline.processWorkingDir = buildAbsolutePath (argv[argIndex+1]);
+                            cmdline.processWorkingDir = build_absolute_path (argv[argIndex+1]);
                             argIndex ++;
                         }
                         else
@@ -80,7 +80,7 @@ bool parseCommandlineParameters (int argc, char **argv)
                     case 'p':
                         if (argv[argIndex+1] != NULL)
                         {
-                            cmdline.processName = buildAbsolutePath (argv[argIndex+1]);
+                            cmdline.processName = build_absolute_path (argv[argIndex+1]);
                             argIndex++;
                         }
                         else
@@ -117,7 +117,7 @@ bool parseCommandlineParameters (int argc, char **argv)
     /* sanity check */
     if (cmdline.processName == NULL)
     {
-        printHelp ();
+        print_help ();
         return false;
     }
     else

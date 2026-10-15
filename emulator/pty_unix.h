@@ -15,20 +15,23 @@
 #include <string.h>
 
 #include "commandline.h"
+#include "adm3a.h"
 
 #define MAX_SLAVE_NAME      64
 #define PTY_BUFFER_SIZE     1024
 
-extern char *childProcessName;
-extern int masterFd;
+/* private functions */
+static int     pty_master_open (char *slaveName, size_t len);
+static pid_t   pty_fork (int *masterFd, struct termios *slaveTermios, const struct winsize *slaveWs);
+static void    enable_raw_mode (void);
+static void    disable_raw_mode (void);
 
-bool    isChildAlive (void);
-int     ptyMasterOpen (char *slaveName, size_t len);
-pid_t   ptyFork (int *masterFd, struct termios *slaveTermios, const struct winsize *slaveWs);
-void    enableRawMode (void);
-void    disableRawMode (void);
+/* public functions */
+int     read_child (char *buffer, int buffer_size);
+bool    write_child (char *buffer, int buffer_size);
+bool    is_child_alive (void);
 
-bool    startProcess (int rows, int columns);
-void    stopProcess (void);
+bool    start_process (void);
+void    stop_process (void);
 
 #endif

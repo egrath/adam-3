@@ -2,11 +2,10 @@
 
 struct termios old_termios;
 
-char *childProcessName;
-pid_t childProcessPid;
-int masterFd;
+static pid_t childProcessPid;
+static int masterFd;
 
-bool isChildAlive (void)
+bool is_child_alive (void)
 {
     int childStatus;
 
@@ -22,7 +21,7 @@ bool isChildAlive (void)
     return true;
 }
 
-int ptyMasterOpen (char *slaveName, size_t len)
+int pty_master_open (char *slaveName, size_t len)
 {
     int masterFd;
     char *p;
@@ -63,13 +62,13 @@ int ptyMasterOpen (char *slaveName, size_t len)
     return masterFd;
 }
 
-pid_t ptyFork (int *masterFd, struct termios *slaveTermios, const struct winsize *slaveWs)
+pid_t pty_fork (int *masterFd, struct termios *slaveTermios, const struct winsize *slaveWs)
 {
     int mfd, slaveFd;
     pid_t childPid;
     char slaveName[MAX_SLAVE_NAME];
 
-    mfd = ptyMasterOpen (slaveName, MAX_SLAVE_NAME);
+    mfd = pty_master_open (slaveName, MAX_SLAVE_NAME);
     if (mfd == -1)
         return -1;
 
@@ -133,7 +132,7 @@ pid_t ptyFork (int *masterFd, struct termios *slaveTermios, const struct winsize
     return 0;
 }
 
-void enableRawMode (void)
+void enable_raw_mode (void)
 {
     struct termios raw;
 
@@ -161,12 +160,38 @@ void enableRawMode (void)
     tcsetattr (STDIN_FILENO, TCSANOW, &raw);
 }
 
-void disableRawMode (void)
+void disable_raw_mode (void)
 {
     tcsetattr (STDIN_FILENO, TCSANOW, &old_termios);
 }
 
-void stopProcess (void)
+/* ############################################################# 
+   ## PUBLIC FUNCTIONS
+   ############################################################# */
+
+int read_child (char *buffer, int buffer_size)
+{
+    if (!is_child_alive())
+    {
+        errno = ESRCH;
+        return -1;
+    }
+
+    return read (masterFd, buffer, buffer_size);
+}
+
+bool write_child (char *buffer, int buffer_size)
+{
+    if (!is_child_alive ())
+        return false;
+
+    if (write (masterFd, buffer, buffer_size) != buffer_size)
+        return false;
+
+    return true;
+}
+
+void stop_process (void)
 {
     int childStatus;
 
@@ -181,21 +206,21 @@ void stopProcess (void)
         masterFd = -1;
     }
 
-    if (isChildAlive ())
+    if (is_child_alive ())
     {
         kill (childProcessPid, SIGTERM);
         waitpid (childProcessPid, &childStatus, 0);
     }
 }
 
-bool startProcess (int rows, int columns)
+bool start_process (void)
 {   
     struct winsize ws;
     char **argv;
     int i;
 
-    ws.ws_row = rows;
-    ws.ws_col = columns;
+    ws.ws_row = TERM_ROWS;
+    ws.ws_col = TERM_COLUMNS;
 
     #ifdef DEBUG
     fprintf (stdout, "DEBUG: starting child process\n");
@@ -209,7 +234,7 @@ bool startProcess (int rows, int columns)
     argv[cmdline.numProcessParameters+1] = NULL;
 
     /* we are going to fork! */
-    childProcessPid = ptyFork (&masterFd, NULL, &ws);
+    childProcessPid = pty_fork (&masterFd, NULL, &ws);
     if (childProcessPid == -1)
     {
         fprintf (stderr, "forking failed! (%s, %d)\n", __FILE__, __LINE__);
@@ -219,11 +244,14 @@ bool startProcess (int rows, int columns)
     /* Am I the child now? */
     if (childProcessPid == 0)
     {
-        enableRawMode();
+        enable_raw_mode();
 
         /* set process working directory (if specified) */
         if (cmdline.processWorkingDir != NULL)
             chdir (cmdline.processWorkingDir);
+
+        /* set TERM, just to make sure */
+        putenv ("TERM=adm3a");
 
         /* and execute the process */
         execvp (cmdline.processName, argv);
