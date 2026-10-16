@@ -182,12 +182,12 @@ int main (int argc, char **argv)
     double duration, left;
 
     if (!config_init ())
-        return 1;
+        fprintf (stdout, "config.txt is missing, using defaults\n");
 
     if (!parse_commandline (argc, argv))
         return 1;
 
-    if (!render_initialize (cmdline.fullscreen))
+    if (!render_initialize ())
         return 1;
 
     adm3a_initialize ();

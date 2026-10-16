@@ -86,7 +86,6 @@ enum CellState
 
 typedef struct
 {
-    int x, y;
     enum CellState state;
     char content;
 }

@@ -16,17 +16,18 @@
 #define FONT_WIDTH                  8
 #define FONT_HEIGHT                 16
 
-bool render_initialize (bool fullscreen);
+bool render_initialize (void);
 void render_cleanup (void);
 
 void render_set_fullscreen (bool fullscreen);
 
-void render_cell (Cell *c);
+void render_cell (Cell *c, int row, int col);
 void render_terminal (void);
 void render_framebuffer (void);
 void update_framebuffer_rect (void);
 
 uint32_t blinky_callback (void *userdata, SDL_TimerID timerID, Uint32 interval);
+void render_print_info (void);
 
 SDL_Texture * build_fontatlas (void);
 

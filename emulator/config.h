@@ -18,6 +18,9 @@ typedef struct
     RGBAColor terminal_background;
     RGBAColor cursor_foreground;
     RGBAColor cursor_background;
+
+    /* fullscreen mode */
+    bool fullscreen;
 }
 configuration;
 
@@ -25,5 +28,6 @@ extern configuration config;
 
 void config_set_default (void);
 bool config_init (void);
+void config_print (void);
 
 #endif

@@ -1,0 +1,8 @@
+terminal_foreground=0xff82ff28
+terminal_background=0xff000000
+cursor_foreground=0xff000000
+cursor_background=0xffffb003
+
+auto_newline=true
+fullscreen=false
+

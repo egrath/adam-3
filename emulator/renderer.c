@@ -18,7 +18,7 @@ bool render_blink_attribute = true;
 
 /* render a single cell (a position in the 80x24 terminal matrix) including all 
    it's attributes to the framebuffer */
-void render_cell (Cell *c)
+void render_cell (Cell *c, int row, int col)
 {
     SDL_FRect sourceRect, destRect;
     bool is_cursor = false;
@@ -28,7 +28,7 @@ void render_cell (Cell *c)
     unsigned char glyph = ((c->state & CS_GRAPHICS) == CS_GRAPHICS) ? c->content+129 : c->content;
 
     /* is this cell the cursor? */
-    if (cursor.y == c->y && cursor.x == c->x)
+    if (cursor.y == row && cursor.x == col)
         is_cursor = true;
 
     /* where in the atlas is our glyph? */
@@ -40,8 +40,8 @@ void render_cell (Cell *c)
     /* where do we have to place the glyph? */
     destRect.w = (float) 8;
     destRect.h = (float) 16;
-    destRect.x = (float) ((c->x -1) * 8) + FRAMEBUFFER_BORDER_SIZE;
-    destRect.y = (float) ((c->y -1) * 16) + FRAMEBUFFER_BORDER_SIZE;
+    destRect.x = (float) ((col -1) * 8) + FRAMEBUFFER_BORDER_SIZE;
+    destRect.y = (float) ((row -1) * 16) + FRAMEBUFFER_BORDER_SIZE;
 
     /* determine the colors we need to use */
     if (is_cursor)
@@ -113,7 +113,8 @@ void render_terminal (void)
     {
         for (x = 0; x < TERM_COLUMNS; x ++)
         {
-            render_cell (&(buffer[y][x]));
+            /* render a single cell. As always, we use logical coordinates for row, column */
+            render_cell (&(buffer[y][x]), y+1, x+1);
         }
     }
 
@@ -131,7 +132,25 @@ void render_terminal (void)
     */
 }
 
-bool render_initialize (bool fullscreen)
+void render_print_info (void)
+{
+    const char *renderName, *driverName;
+    SDL_GPUDevice *gpuDevice;
+
+    renderName = SDL_GetRendererName (renderer);
+    gpuDevice = SDL_GetGPURendererDevice (renderer);
+    if (gpuDevice)
+    {
+        driverName = SDL_GetGPUDeviceDriver (gpuDevice);
+        fprintf (stdout, "Renderer: %s, Driver: %s\n", renderName, driverName);
+    }
+    else
+    {
+        fprintf (stdout, "Renderer is not GPU accelerated!\n");
+    }
+}
+
+bool render_initialize (void)
 {
     SDL_WindowFlags flags;
     int fbWidth, fbHeight;
@@ -153,7 +172,7 @@ bool render_initialize (bool fullscreen)
 
     /* create the window, if specified in fullscreen mode */
     flags = SDL_WINDOW_RESIZABLE;
-    if (fullscreen)
+    if (config.fullscreen)
         flags |= SDL_WINDOW_FULLSCREEN;
     if ((window = SDL_CreateWindow ("ADAM-3", fbWidth*2, fbHeight*2, flags)) == NULL)
     {
@@ -167,6 +186,9 @@ bool render_initialize (bool fullscreen)
         fprintf (stderr, "SDL_CreateGPURenderer failed: %s (%s, %d)\n", SDL_GetError(), __FILE__, __LINE__);
         return false;
     }
+
+    /* print information about which render backend has been chosen by SDL */
+    render_print_info ();
 
     SDL_SetRenderDrawColor (renderer, 0, 0, 0, 255);
     SDL_SetRenderVSync (renderer, SDL_RENDERER_VSYNC_DISABLED);

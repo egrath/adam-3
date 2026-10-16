@@ -54,8 +54,6 @@ void adm3a_clear_range (Cursor from, Cursor to)
         {
             buffer[y][x].content = ' ';
             buffer[y][x].state = CS_BLANK;
-            buffer[y][x].x = x + 1;
-            buffer[y][x].y = y + 1;
         }
     }
 }
@@ -90,8 +88,6 @@ void adm3a_set_character (char c, int y, int x)
     #endif
 
     buffer[y-1][x-1].content = c;
-    buffer[y-1][x-1].x = x;
-    buffer[y-1][x-1].y = y;
     buffer[y-1][x-1].state = cell_state;    
 }
 
@@ -117,15 +113,12 @@ void adm3a_scroll_down (void)
         for (col = 0; col < TERM_COLUMNS; col ++)
         {
             buffer[row-1][col] = buffer[row][col];
-            buffer[row-1][col].y--;
         }
     }
 
     /* last row needs to be cleared */
     for (col = 0; col < TERM_COLUMNS; col ++)
     {
-        buffer[TERM_ROWS-1][col].y = TERM_ROWS;
-        buffer[TERM_ROWS-1][col].x = col+1;
         buffer[TERM_ROWS-1][col].state = CS_BLANK;
         buffer[TERM_ROWS-1][col].content = ' '; 
     }
@@ -542,7 +535,6 @@ void adm31_insert_line (void)
         for (col = 1; col <= TERM_COLUMNS; col ++)
         {
             buffer[dr-1][col-1] = buffer[sr-1][col-1];
-            buffer[dr-1][col-1].y++;
         }
     }
 
@@ -566,7 +558,6 @@ void adm31_delete_line (void)
         for (col = 1; col <= TERM_COLUMNS; col ++)
         {
             buffer[dr-1][col-1] = buffer[sr-1][col-1];
-            buffer[dr-1][col-1].y--;
         }
     }
 

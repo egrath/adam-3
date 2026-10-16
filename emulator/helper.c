@@ -24,3 +24,37 @@ uint32_t rgba_to_uint32 (RGBAColor color)
     
     return argb;
 }
+
+uint32_t str_to_uint32 (const char *str)
+{
+    uint32_t num;
+
+    if (str != NULL)
+    {
+        if (sscanf (str, "0x%08X", &num)==0)
+        {
+            fprintf (stdout, "warning: conversion of %s to uint32 failed\n", str);
+            return 0;
+        }
+        else
+            return num;
+    }
+
+    fprintf (stdout, "warning: conversion of input string to uint32 failed because input is NULL\n");
+    return 0;
+}
+
+bool str_to_bool (const char *str)
+{
+    if (str == NULL)
+        return false;
+    else
+    {
+        if (strcasecmp (str, "true") == 0)
+            return true;
+        else if (strcasecmp (str, "false") == 0)
+            return false;
+    }
+
+    return false;
+}
