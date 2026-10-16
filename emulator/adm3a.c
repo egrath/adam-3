@@ -194,6 +194,22 @@ void adm3a_process_ascii (uint32_t c)
             adm3a_set_cursor_position (1, 1);
             break;
 
+        /* Special characters only used by the Kaypro-II ADM-3A implementation */
+        case ASCII_ETB:
+            /* clear to end of screen */
+            adm3a_clear_range (
+                (Cursor) { .y = cursor.y, .x = cursor.x },
+                (Cursor) { .y = TERM_ROWS, .x = TERM_COLUMNS });
+            break;
+
+        case ASCII_CAN:
+            /* clear to end of line */
+            adm3a_clear_range (
+                (Cursor) { .y = cursor.y, .x = cursor.x },
+                (Cursor) { .y = cursor.y, .x = TERM_COLUMNS });
+            break;
+
+        /* handle everything else */
         default:
             /* we only set printable characters */
             if (c >= ASCII_SPACE && c <= ASCII_TILDE)
