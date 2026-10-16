@@ -474,7 +474,9 @@ void adm3a_process_operation_eq (void)
    by the host process (e.g. RunCPM) as we are working in full-duplex mode */
 void adm3a_eat (char c)
 {
-    // fprintf (stdout, "    inc: 0x%02X (%03d, [%c])\n", c, c, (c >= ASCII_SPACE && c <= ASCII_DEL) ? c : ' ');
+    #ifdef DEBUG
+    fprintf (stdout, "        incoming: 0x%02X (%03d, [%c]), DS=%d\n", c, c, (c >= ASCII_SPACE && c <= ASCII_DEL) ? c : ' ', decoder_state);
+    #endif  
     switch (decoder_state)
     {
         case DS_NORMAL:

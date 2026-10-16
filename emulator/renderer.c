@@ -352,4 +352,9 @@ void render_cleanup (void)
 void render_set_fullscreen (bool fullscreen)
 {
     SDL_SetWindowFullscreen (window, fullscreen);
+
+    if (fullscreen)
+        SDL_HideCursor ();
+    else
+        SDL_ShowCursor ();
 }

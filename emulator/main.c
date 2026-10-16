@@ -35,6 +35,10 @@ void send_ascii (char code)
 
 bool handle_keydown (SDL_KeyboardEvent *event)
 {
+    #ifdef DEBUG
+    fprintf (stdout, "handle_keydown for [%02X] called\n", event->key);
+    #endif
+
     /* we use the F-Keys for our control and also for some convenience stuff */
     switch (event->key)
     {
@@ -77,15 +81,29 @@ bool handle_keydown (SDL_KeyboardEvent *event)
     /* we have to send CTRL-xxx combinations to the slave, e.g. Ctrl-A = 1, Ctrl-B = 2, ... */
     if ((event->mod & SDL_KMOD_LCTRL) || (event->mod & SDL_KMOD_RCTRL))
     {
+        #ifdef DEBUG
+        fprintf (stdout, "handle_keydown: control modifier pressed, handling\n");
+        #endif
+
         if (event->key >= 'a' && event->key <= 'z')
             send_ascii(event->key - 0x60);
         else if (event->key == SDLK_HOME)
             send_ascii (ASCII_RS);
     }
     else if (event->key == SDLK_DELETE)
+    {
+        #ifdef DEBUG
+        fprintf (stdout, "handle_keydown: DELETE key pressed\n");
+        #endif
         send_ascii (ASCII_DEL);
+    }
     else if (event->key == SDLK_BACKSPACE)
+    {
+        #ifdef DEBUG
+        fprintf (stdout, "handle_keydown: BACKSPACE key pressed\n");
+        #endif
         send_ascii (ASCII_BS);
+    }
     else if (event->key == SDLK_ESCAPE)
         send_ascii (ASCII_ESC);
     else if (event->key == SDLK_TAB)
@@ -99,8 +117,17 @@ bool handle_keydown (SDL_KeyboardEvent *event)
            there is also special handling required because SDL_KeyEvents only give use lowercase
            keys, so we have to take that into account when doing our repeat magic */
         if ((char) event->key == tolower (lastKeyCodeSent) && event->repeat)
+        {
+            #ifdef DEBUG
+            fprintf (stdout, "handle_keydown: repeating last key\n");
+            #endif
             send_ascii (lastKeyCodeSent);
+        }
     }
+
+    #ifdef DEBUG
+    fprintf (stdout, "handle_keydown: returning\n");
+    #endif
 
     return true;
 }
@@ -109,6 +136,10 @@ bool handle_textinput (SDL_TextInputEvent *event)
 {
     int i, inputLen;
     const bool *keyState;
+
+    #ifdef DEBUG
+    fprintf (stdout, "handle_textinput called\n");
+    #endif
 
     /* we only process input text if CTRL is unpressed - this should never happen, but better safe then sorry */
     keyState = SDL_GetKeyboardState (NULL);
@@ -122,6 +153,10 @@ bool handle_textinput (SDL_TextInputEvent *event)
     inputLen = strlen (event->text);
     for (i = 0; i < inputLen; i ++)
         send_ascii (event->text[i]);
+
+    #ifdef DEBUG
+    fprintf (stdout, "handle_textinput return\n");
+    #endif
 
     return true;
 }
@@ -224,6 +259,7 @@ int main (int argc, char **argv)
 
                 case SDL_EVENT_TEXT_INPUT:
                     handle_textinput (&(event.text));
+                    break;
 
                 case SDL_EVENT_KEY_DOWN:
                     handle_keydown (&(event.key));
