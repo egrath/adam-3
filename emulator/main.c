@@ -8,6 +8,7 @@
 #include "pty_unix.h"
 #include "renderer.h"
 #include "config.h"
+#include "xmodem.h"
 
 char lastKeyCodeSent;
 
@@ -268,6 +269,7 @@ int main (int argc, char **argv)
                 /* Drag and drop support for XMODEM transfers */
                 case SDL_EVENT_DROP_FILE:
                     fprintf (stdout, "drop file: %s\n", event.drop.data);
+                    xmodem_send (event.drop.data);
                     break;
 
                 default:
