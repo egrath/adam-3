@@ -12,34 +12,6 @@ static void print_help (void)
     fprintf (stdout, "    -- <param 1 ... param n>  Pass parameter 1 to n to the child\n");
 }
 
-static char * build_absolute_path (char *relative)
-{
-    char *absolute;
-    struct stat s;
-
-    if ((absolute = (char *) malloc (sizeof (char) * 256)) == NULL)
-    {
-        fprintf (stderr, "malloc() failed (%s, %d)\n", __FILE__, __LINE__);
-        return NULL;
-    }
-
-    /* convert from relative to absolute */
-    if ((realpath (relative, absolute)) == NULL)
-    {
-        fprintf (stderr, "realpath() failed (%s, %d)\n", __FILE__, __LINE__);
-        return NULL;
-    }
-
-    /* check if the file / directory exists */
-    if (stat (absolute, &s) != 0)
-    {
-        fprintf (stderr, "file or directory [%s] does not exist (%s, %d)\n", absolute, __FILE__, __LINE__);
-        return NULL;
-    }
-
-    return absolute;
-}
-
 bool parse_commandline (int argc, char **argv)
 {
     int argIndex, parIndex;

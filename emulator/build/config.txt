@@ -4,5 +4,7 @@ cursor_foreground=0xff000000
 cursor_background=0xffffbf00
 
 auto_newline=true
+
 fullscreen=false
+xmodem_recv_path=.
 

@@ -6,7 +6,10 @@ configuration config;
 void config_set_default (void)
 {
     config.auto_newline = true;
+
     config.fullscreen = true;
+    strcpy (config.xmodem_recv_path, build_absolute_path ("."));
+
     config.terminal_foreground = uint32_to_rgba (0xFF81FF81);
     config.terminal_background = uint32_to_rgba (0xFF000000);
     config.cursor_foreground = uint32_to_rgba (0xFF000000);
@@ -44,6 +47,7 @@ void print_config (void)
 
     fprintf (stdout, "           auto newline: %s\n", config.auto_newline ? "true" : "false");
     fprintf (stdout, "             fullscreen: %s\n", config.fullscreen ? "true" : "false");
+    fprintf (stdout, "    XMODEM receive path: %s\n", config.xmodem_recv_path);
 }
 
 /* read configuration file */
@@ -89,6 +93,14 @@ bool config_init (void)
             
             if (strcmp (key, "fullscreen") == 0)
                 config.fullscreen = str_to_bool (value);
+            if (strcmp (key, "xmodem_recv_path") == 0)
+            {
+                char *path = build_absolute_path (value);
+                if (path != NULL)
+                    strcpy (config.xmodem_recv_path, build_absolute_path (value));
+                else
+                    fprintf (stdout, "XMODEM path does not exist, falling back to default\n");
+            }
         }
     }
     

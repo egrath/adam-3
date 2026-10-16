@@ -265,6 +265,11 @@ int main (int argc, char **argv)
                     handle_keydown (&(event.key));
                     break;
 
+                /* Drag and drop support for XMODEM transfers */
+                case SDL_EVENT_DROP_FILE:
+                    fprintf (stdout, "drop file: %s\n", event.drop.data);
+                    break;
+
                 default:
                     break;
             }

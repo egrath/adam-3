@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include <sys/stat.h>
+#include "helper.h"
 
 typedef struct
 {
@@ -20,7 +20,6 @@ typedef struct
 extern Commandline cmdline;
 
 static void print_help (void);
-static char * build_absolute_path (char *relative);
 bool parse_commandline (int argc, char **argv);
 
 #endif

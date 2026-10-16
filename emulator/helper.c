@@ -58,3 +58,35 @@ bool str_to_bool (const char *str)
 
     return false;
 }
+
+/* ########################################################################
+   ## I/O related                                                        ##
+   ######################################################################## */
+
+char * build_absolute_path (char *relative)
+{
+    char *absolute;
+    struct stat s;
+
+    if ((absolute = (char *) malloc (sizeof (char) * 256)) == NULL)
+    {
+        fprintf (stderr, "malloc() failed (%s, %d)\n", __FILE__, __LINE__);
+        return NULL;
+    }
+
+    /* convert from relative to absolute */
+    if ((realpath (relative, absolute)) == NULL)
+    {
+        fprintf (stderr, "realpath() failed (%s, %d)\n", __FILE__, __LINE__);
+        return NULL;
+    }
+
+    /* check if the file / directory exists */
+    if (stat (absolute, &s) != 0)
+    {
+        fprintf (stderr, "file or directory [%s] does not exist (%s, %d)\n", absolute, __FILE__, __LINE__);
+        return NULL;
+    }
+
+    return absolute;
+}

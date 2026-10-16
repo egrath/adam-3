@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <sys/stat.h>
 
 typedef struct
 {
@@ -19,5 +20,7 @@ uint32_t rgba_to_uint32 (RGBAColor color);
 
 uint32_t str_to_uint32 (const char *str);
 bool str_to_bool (const char *str);
+
+char * build_absolute_path (char *relative);
 
 #endif
