@@ -6,5 +6,6 @@ cursor_background=0xffffbf00
 auto_newline=true
 
 fullscreen=false
+cursor_blink=false
 xmodem_recv_path=.
 

@@ -14,7 +14,11 @@ SDL_FRect framebufferRenderRect;
 
 SDL_Texture *fontAtlas;     /* this stores our font */
 
-bool render_blink_attribute = true;
+/* these two attributes define if we should render the thing or not
+   if it's true render, if it's false don't. This is used to blink
+   something */
+bool render_text_blink_attribute = true;
+bool render_cursor_blink_attribute = true;
 
 /* render a single cell (a position in the 80x24 terminal matrix) including all 
    it's attributes to the framebuffer */
@@ -44,7 +48,7 @@ void render_cell (Cell *c, int row, int col)
     destRect.y = (float) ((row -1) * 16) + FRAMEBUFFER_BORDER_SIZE;
 
     /* determine the colors we need to use */
-    if (is_cursor)
+    if (is_cursor && render_cursor_blink_attribute)
     {
         render_fg = config.cursor_foreground;
         render_bg = config.cursor_background;
@@ -68,7 +72,7 @@ void render_cell (Cell *c, int row, int col)
     SDL_RenderFillRect (renderer, &destRect);
 
     /* if cell has blinking attribute set, check if we should render it or not */
-    if ((c->state & CS_BLINK) == CS_BLINK && !render_blink_attribute)
+    if ((c->state & CS_BLINK) == CS_BLINK && !render_text_blink_attribute)
         return;
 
     /* Blit the (colored) glyph */
@@ -320,11 +324,24 @@ SDL_Texture * build_fontatlas (void)
 // This is called at a frequency of 1/2 hz to update the blinking text state
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-parameter"
-uint32_t blinky_callback (void *userdata, SDL_TimerID timerID, Uint32 interval)
+uint32_t text_blink_callback (void *userdata, SDL_TimerID timerID, Uint32 interval)
 {
     /* toggle blink text rendering */
-    render_blink_attribute = !render_blink_attribute;
+    render_text_blink_attribute = !render_text_blink_attribute;
 
+    /* call again in 500 ms */
+    return 500;
+}
+#pragma clang diagnostic pop
+
+// This is called at a frequency of 1/2 hz to update the cursor blink state
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
+uint32_t cursor_blink_callback (void *userdata, SDL_TimerID timerID, Uint32 interval)
+{
+    if (config.cursor_blink)
+        render_cursor_blink_attribute = !render_cursor_blink_attribute;
+    
     /* call again in 500 ms */
     return 500;
 }

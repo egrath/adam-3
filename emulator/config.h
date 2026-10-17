@@ -22,6 +22,9 @@ typedef struct
     /* fullscreen mode */
     bool fullscreen;
 
+    /* cursor blinking? */
+    bool cursor_blink;
+
     /* directory for receiving XMODEM files */
     char xmodem_recv_path[256];
 }

@@ -26,7 +26,9 @@ void render_terminal (void);
 void render_framebuffer (void);
 void update_framebuffer_rect (void);
 
-uint32_t blinky_callback (void *userdata, SDL_TimerID timerID, Uint32 interval);
+uint32_t text_blink_callback (void *userdata, SDL_TimerID timerID, Uint32 interval);
+uint32_t cursor_blink_callback (void *userdata, SDL_TimerID timerID, Uint32 interval);
+
 void render_print_info (void);
 
 SDL_Texture * build_fontatlas (void);

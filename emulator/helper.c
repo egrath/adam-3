@@ -54,6 +54,10 @@ bool str_to_bool (const char *str)
             return true;
         else if (strcasecmp (str, "false") == 0)
             return false;
+        else if (strcasecmp (str, "1") == 0)
+            return true;
+        else if (strcasecmp (str, "0") == 0)
+            return false;
     }
 
     return false;

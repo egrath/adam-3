@@ -245,8 +245,11 @@ int main (int argc, char **argv)
         exit (1);
     }
 
-    /* Register the callback for the blinky state of the cell buffer */
-    SDL_AddTimer (500, blinky_callback, NULL);
+    /* Register the callback for the blink state of the cell buffer */
+    SDL_AddTimer (500, text_blink_callback, NULL);
+
+    /* Register the callback for the cursor blink */
+    SDL_AddTimer (250, cursor_blink_callback, NULL);
 
     /* Main Loop */
     while (run)
