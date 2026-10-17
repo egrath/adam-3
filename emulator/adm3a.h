@@ -108,7 +108,7 @@ static bool adm3a_verify_input_range (int y, int x);
 void adm3a_initialize (void);
 void adm3a_clear_screen (void);
 void adm3a_clear_range (Cursor from, Cursor to);
-void adm3a_set_character (char c, int y, int x);
+void adm3a_set_character (uint8_t c, int y, int x);
 void adm3a_set_cursor_position (int y, int x);
 
 void adm3a_process_ascii (uint32_t c);
@@ -117,7 +117,7 @@ void adm3a_process_operation_o (void);
 void adm3a_process_operation_g (void);
 void adm3a_process_operation_eq (void);
 
-void adm3a_eat (char c);
+void adm3a_eat (uint8_t c);
 
 void adm31_insert_line (void);
 void adm31_delete_line (void);

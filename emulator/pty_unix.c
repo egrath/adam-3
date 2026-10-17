@@ -5,7 +5,7 @@ struct termios old_termios;
 static pid_t childProcessPid;
 static int masterFd;
 
-bool is_child_alive (void)
+bool child_alive (void)
 {
     int childStatus;
 
@@ -169,9 +169,33 @@ void disable_raw_mode (void)
    ## PUBLIC FUNCTIONS
    ############################################################# */
 
-int read_child (char *buffer, int buffer_size)
+bool child_has_data (void)
 {
-    if (!is_child_alive())
+    fd_set read_fds;
+    struct timeval timeout;
+    int rc;
+
+    /* clear the set and add our file descriptor to it */
+    FD_ZERO (&read_fds);
+    FD_SET (masterFd, &read_fds);
+
+    /* no timeout, return immediately */
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 0;
+
+    rc = select (masterFd + 1, &read_fds, NULL, NULL, &timeout);
+    if (rc == 0)
+    {
+        /* no data available */
+        return false;
+    }
+    else
+        return true;
+}
+
+int child_read (uint8_t *buffer, int buffer_size)
+{
+    if (!child_alive())
     {
         errno = ESRCH;
         return -1;
@@ -180,9 +204,9 @@ int read_child (char *buffer, int buffer_size)
     return read (masterFd, buffer, buffer_size);
 }
 
-bool write_child (char *buffer, int buffer_size)
+bool child_write (uint8_t *buffer, int buffer_size)
 {
-    if (!is_child_alive ())
+    if (!child_alive ())
         return false;
 
     if (write (masterFd, buffer, buffer_size) != buffer_size)
@@ -206,7 +230,7 @@ void stop_process (void)
         masterFd = -1;
     }
 
-    if (is_child_alive ())
+    if (child_alive ())
     {
         kill (childProcessPid, SIGTERM);
         waitpid (childProcessPid, &childStatus, 0);

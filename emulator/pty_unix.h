@@ -27,9 +27,10 @@ static void    enable_raw_mode (void);
 static void    disable_raw_mode (void);
 
 /* public functions */
-int     read_child (char *buffer, int buffer_size);
-bool    write_child (char *buffer, int buffer_size);
-bool    is_child_alive (void);
+bool    child_has_data (void);
+int     child_read (uint8_t *buffer, int buffer_size);
+bool    child_write (uint8_t *buffer, int buffer_size);
+bool    child_alive (void);
 
 bool    start_process (void);
 void    stop_process (void);

@@ -8,11 +8,10 @@
 #include "pty_unix.h"
 #include "renderer.h"
 #include "config.h"
-#include "xmodem.h"
 
 char lastKeyCodeSent;
 
-bool process_child_input (char c);
+bool process_child_input (uint8_t c);
 bool process_child_output (void);
 
 static int run = true;
@@ -21,7 +20,7 @@ static int run = true;
    Keyboard and Input handling
    ####################################################################### */
 
-void send_ascii (char code)
+void send_ascii (uint8_t code)
 {
     #ifdef DEBUG
     fprintf (stdout, "DEBUG: Sending [0x%02X %03d] (%c) to the slave\n",
@@ -180,12 +179,22 @@ void terminal_bell (void)
 bool process_child_output (void)
 {
     ssize_t numRead;
-    char inputBuffer[PTY_BUFFER_SIZE];
+    uint8_t inputBuffer[PTY_BUFFER_SIZE];
     int i;
 
     /* check if we received any data from the slave */
-    numRead = read_child (inputBuffer, PTY_BUFFER_SIZE);
+    if (child_has_data ())
+    {
+        /* yes there's something for us to read */
+        numRead = child_read (inputBuffer, PTY_BUFFER_SIZE);
+    }
+    else
+    {
+        /* no data */
+        return true;
+    }
 
+    /* we probably read something, but just to make sure */
     if (numRead > 0)
     {
         #ifdef DEBUG
@@ -205,9 +214,9 @@ bool process_child_output (void)
 }
 
 /* from the terminal to the child process */
-bool process_child_input (char c)
+bool process_child_input (uint8_t c)
 {
-    return write_child (&c, 1);
+    return child_write (&c, 1);
 }
 
 int main (int argc, char **argv)
@@ -259,19 +268,16 @@ int main (int argc, char **argv)
                     break;
 
                 case SDL_EVENT_TEXT_INPUT:
-                    if (!xmodem_in_progress)
-                        handle_textinput (&(event.text));
+                    handle_textinput (&(event.text));
                     break;
 
                 case SDL_EVENT_KEY_DOWN:
-                    if (!xmodem_in_progress)
-                        handle_keydown (&(event.key));
+                    handle_keydown (&(event.key));
                     break;
 
                 /* Drag and drop support for XMODEM transfers */
                 case SDL_EVENT_DROP_FILE:
                     fprintf (stdout, "drop file: %s\n", event.drop.data);
-                    xmodem_begin (XMT_SEND, event.drop.data);
                     break;
 
                 default:
@@ -279,35 +285,11 @@ int main (int argc, char **argv)
             }
         }
 
-        /* XMODEM step */
-        if (xmodem_in_progress)
-            if (!xmodem_step ())
-            {
-                switch (xmodem_status)
-                {
-                    case XMS_FINISHED:
-                        fprintf (stdout, "XMODEM: transfer successfully finished\n");
-                        break;
-                    
-                    default:
-                        fprintf (stdout, "XMODEM: unknown status\n");
-                        break;
-                }
-            }
-
-        /* read all incoming data from the child process and update our state accordingly,
-           but only if there is not XMODEM transfer in progress */
-        if (is_child_alive ())
-        {
-            if (!xmodem_in_progress) 
-            {
-                process_child_output ();
-            }
-        }
+        /* read all incoming data from the child process and update our state accordingly */
+        if (child_alive ())
+            process_child_output ();
         else
-        {
             run = false;
-        }
 
         /* render the terminal the framebuffer */
         render_terminal ();
@@ -315,17 +297,13 @@ int main (int argc, char **argv)
         /* render framebuffer into the window */
         render_framebuffer ();
 
-        /* cap to 60 fps under normal circumstances, but don't limit during
-           an active XMODEM transfer */
-        if (!xmodem_in_progress)
+        /* cap to 60 fps */
+        end = SDL_GetPerformanceCounter ();
+        duration = (double) (end - start) * 1000.0 / (double) SDL_GetPerformanceFrequency();
+        left = 16.67 - duration;
+        if (left>0.0)
         {
-            end = SDL_GetPerformanceCounter ();
-            duration = (double) (end - start) * 1000.0 / (double) SDL_GetPerformanceFrequency();
-            left = 16.67 - duration;
-            if (left>0.0)
-            {
-                SDL_Delay (left);
-            }
+            SDL_Delay (left);
         }
     }
 

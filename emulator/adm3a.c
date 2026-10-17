@@ -22,7 +22,7 @@ bool autonewline = true;
 void (*adm3a_bell) (void) = NULL;
 
 /* used for temporarily storing received control parameters from the host */
-char parameter1, parameter2;
+uint8_t parameter1, parameter2;
 
 /* initialize the terminal to it's pristine state */
 void adm3a_initialize (void)
@@ -74,7 +74,7 @@ static bool adm3a_verify_input_range (int y, int x)
 }
 
 /* set a single character in the terminal buffer, at absolute position */
-void adm3a_set_character (char c, int y, int x)
+void adm3a_set_character (uint8_t c, int y, int x)
 {
     if( !adm3a_verify_input_range (y, x))
         return;
@@ -488,7 +488,7 @@ void adm3a_process_operation_eq (void)
 
 /* process a single character in the ADM-3A emulation. These are the characters sent back
    by the host process (e.g. RunCPM) as we are working in full-duplex mode */
-void adm3a_eat (char c)
+void adm3a_eat (uint8_t c)
 {
     #ifdef DEBUG
     fprintf (stdout, "        incoming: 0x%02X (%03d, [%c]), DS=%d\n", c, c, (c >= ASCII_SPACE && c <= ASCII_DEL) ? c : ' ', decoder_state);
