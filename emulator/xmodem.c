@@ -1,91 +1,63 @@
 #include "xmodem.h"
 
-bool xmodem_send (const char *s)
+bool xmodem_in_progress = false;
+
+/* we save the status of the xmodem transfer to know if it was successful or not */
+enum XModemStatus xmodem_status;
+
+/* state machine status */
+static enum XModemState xmodem_state;
+
+void xmodem_begin (enum XModemTransferType type, const char *file)
 {
-    FILE *f;
-    uint8_t *block, *chunk;
-    int total_blocks = 0, current_block = 0;
-    bool finished = false;
-    enum XModemState state = XM_WAIT_NAK, last_state = XM_UNDEFINED;
-
-    if ((f = fopen (s, "rb")) == NULL)
+    fprintf (stdout, "XMODEM: starting xmodem transfer: %s\n", type == XMT_SEND ? "Send" : "Receive");
+    
+    switch (type)
     {
-        fprintf (stdout, "XMODEM: failed to open source file\n");
-        return false;
+        case XMT_SEND:
+            xmodem_state = XM_SEND_WAIT_INITIAL_NAK;
+            xmodem_in_progress = true;
+            break;
+
+        default:
+            xmodem_state = XM_INITIAL;
+            break;
     }
-    else
-        total_blocks = file_blocks (f);
-    fprintf (stdout, "XMODEM: file has a total number of %d blocks\n", total_blocks);
-
-    block = (uint8_t *) malloc (sizeof (uint8_t) * XMODEM_BLOCKSIZE);
-
-    while (!finished)
-    {
-        switch (state)
-        {
-            case XM_WAIT_NAK:
-                if (!wait_nak ())
-                {
-                    fprintf (stdout, "XMODEM: not receiving initial NAK, aborting\n");
-                    return false;
-                }
-                state = XM_SEND_BLOCK;
-                break;
-
-            case XM_WAIT_ACK:
-                if (wait_ack ())
-                {
-                    /* we were waiting for the final ack? */
-                    if (last_state == XM_SEND_EOT)
-                        finished = true;
-                    else
-                    {
-                        /* next block */
-                        current_block ++;
-                        if (current_block >= total_blocks)
-                            state = XM_SEND_EOT;
-                        else
-                            state = XM_SEND_BLOCK;
-                    }
-                }
-                else
-                    state = XM_SEND_BLOCK;
-                break;
-
-            case XM_SEND_EOT:
-                break;
-
-            case XM_SEND_BLOCK:
-                /* build the transmission block */
-                block[0] = 0x01;                /* SOH */
-                block[1] = current_block;
-                block[2] = 255 - block[1];
-
-                /* get the 128-byte block from the file ("chunk") and copy it to
-                   the transmission block */
-                chunk = get_file_block (f, current_block);
-                memcpy (block+3, chunk, 128);
-
-                block[131] = calculate_checksum (chunk);
-                free (chunk);
-
-                /* transfer the block */
-                fprintf (stdout, "XMODEM: Transfering block %d, waiting for ACK\n", current_block);
-                write_child ((char *) block, XMODEM_BLOCKSIZE);
-                state = XM_WAIT_ACK;
-                break;
-
-            default:
-                break;
-        }
-    }
-
-    return true;
 }
 
-bool xmodem_receive (void)
+void xmodem_end (void)
 {
-    return true;
+    fprintf (stdout, "XMODEM: ending xmodem transfer\n");
+
+    xmodem_in_progress = false;
+}
+
+bool xmodem_step (void)
+{
+    bool rc = false;
+    char input;
+    int read;
+
+    switch (xmodem_state)
+    {
+        case XM_SEND_WAIT_INITIAL_NAK:
+            read = read_child (&input, 1);
+            if (read == 1)
+            {
+            }
+            else
+            {
+            }
+            break;
+
+        default:
+            xmodem_state = XM_INITIAL;
+            xmodem_status = XMS_UNKNOWN;
+            xmodem_in_progress = false;
+            break;
+    }
+
+    return rc;
 }
 
 /* ########################################################
@@ -149,63 +121,4 @@ uint8_t calculate_checksum (uint8_t *block)
 
     /* sum mod 256 */
     return (sum & 0x000000FF);
-}
-
-bool wait_nak (void)
-{
-    bool have_nak = false;
-    char buffer[PTY_BUFFER_SIZE];
-    int num_buffer_read, i;
-
-    while (!have_nak)
-    {
-        num_buffer_read = read_child (buffer, PTY_BUFFER_SIZE);
-
-        if (num_buffer_read > 0)
-        {
-            fprintf (stdout, "XMODEM: read %d bytes from child\n", num_buffer_read);
-
-            for (i = 0; i < num_buffer_read; i ++)
-            {
-                if (buffer[i] == 0x15)
-                    have_nak = true;
-            }
-        }
-    }
-
-    fprintf (stdout, "XMODEM: received initial NAK, continuing\n");
-    return true;
-}
-
-bool wait_ack (void)
-{
-    bool have_ack = false, have_nak = false;
-    char buffer[PTY_BUFFER_SIZE];
-    int num_buffer_read, i;
-
-    while (!have_ack && !have_nak)
-    {
-        num_buffer_read = read_child (buffer, PTY_BUFFER_SIZE);
-
-        if (num_buffer_read > 0)
-        {
-            fprintf (stdout, "XMODEM: read %d bytes from child\n", num_buffer_read);
-
-            for (i = 0; i < num_buffer_read; i ++)
-            {
-                if (buffer[i] == 0x06)
-                {
-                    fprintf (stdout, "XMODEM: got an ACK, good!\n");
-                    have_ack = true;
-                }
-                else if (buffer[i] == 0x15)
-                {
-                    fprintf (stdout, "XMODEM: got an NACK, resending!\n");
-                    have_nak = true;
-                }
-            }
-        }
-    }
-
-    return have_ack;
 }

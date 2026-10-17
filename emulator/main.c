@@ -259,17 +259,19 @@ int main (int argc, char **argv)
                     break;
 
                 case SDL_EVENT_TEXT_INPUT:
-                    handle_textinput (&(event.text));
+                    if (!xmodem_in_progress)
+                        handle_textinput (&(event.text));
                     break;
 
                 case SDL_EVENT_KEY_DOWN:
-                    handle_keydown (&(event.key));
+                    if (!xmodem_in_progress)
+                        handle_keydown (&(event.key));
                     break;
 
                 /* Drag and drop support for XMODEM transfers */
                 case SDL_EVENT_DROP_FILE:
                     fprintf (stdout, "drop file: %s\n", event.drop.data);
-                    xmodem_send (event.drop.data);
+                    xmodem_begin (XMT_SEND, event.drop.data);
                     break;
 
                 default:
@@ -277,11 +279,35 @@ int main (int argc, char **argv)
             }
         }
 
-        /* read all incoming data from the started process */
+        /* XMODEM step */
+        if (xmodem_in_progress)
+            if (!xmodem_step ())
+            {
+                switch (xmodem_status)
+                {
+                    case XMS_FINISHED:
+                        fprintf (stdout, "XMODEM: transfer successfully finished\n");
+                        break;
+                    
+                    default:
+                        fprintf (stdout, "XMODEM: unknown status\n");
+                        break;
+                }
+            }
+
+        /* read all incoming data from the child process and update our state accordingly,
+           but only if there is not XMODEM transfer in progress */
         if (is_child_alive ())
-            process_child_output ();
+        {
+            if (!xmodem_in_progress) 
+            {
+                process_child_output ();
+            }
+        }
         else
+        {
             run = false;
+        }
 
         /* render the terminal the framebuffer */
         render_terminal ();
@@ -289,13 +315,17 @@ int main (int argc, char **argv)
         /* render framebuffer into the window */
         render_framebuffer ();
 
-        /* cap to 60 fps */
-        end = SDL_GetPerformanceCounter ();
-        duration = (double) (end - start) * 1000.0 / (double) SDL_GetPerformanceFrequency();
-        left = 16.67 - duration;
-        if (left>0.0)
+        /* cap to 60 fps under normal circumstances, but don't limit during
+           an active XMODEM transfer */
+        if (!xmodem_in_progress)
         {
-            SDL_Delay (left);
+            end = SDL_GetPerformanceCounter ();
+            duration = (double) (end - start) * 1000.0 / (double) SDL_GetPerformanceFrequency();
+            left = 16.67 - duration;
+            if (left>0.0)
+            {
+                SDL_Delay (left);
+            }
         }
     }
 

@@ -9,20 +9,32 @@
 
 enum XModemState
 {
-    XM_UNDEFINED,
-    XM_WAIT_NAK,
-    XM_WAIT_ACK,
-    XM_SEND_BLOCK,
-    XM_SEND_EOT
+    XM_INITIAL,
+    XM_SEND_WAIT_INITIAL_NAK
 };
 
-#define XMODEM_BLOCKSIZE       132
+enum XModemStatus
+{
+    XMS_UNKNOWN,
+    XMS_FINISHED
+};
 
-bool xmodem_send (const char *s);
-bool xmodem_receive (void);
+enum XModemTransferType
+{
+    XMT_SEND,
+    XMT_RECEIVE
+};
 
-static bool wait_nak (void);
-static bool wait_ack (void);
+#define XMODEM_BLOCKSIZE        132
+#define XMODEM_CHUNKSIZE        128
+
+extern bool xmodem_in_progress;
+extern enum XModemStatus xmodem_status;
+
+void xmodem_begin (enum XModemTransferType type, const char *file);
+void xmodem_end (void);
+
+bool xmodem_step (void);
 
 static uint8_t calculate_checksum (uint8_t *block);
 static int file_blocks (FILE *f);
