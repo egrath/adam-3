@@ -322,8 +322,6 @@ SDL_Texture * build_fontatlas (void)
 }
 
 // This is called at a frequency of 1/2 hz to update the blinking text state
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunused-parameter"
 uint32_t text_blink_callback (void *userdata, SDL_TimerID timerID, Uint32 interval)
 {
     /* toggle blink text rendering */
@@ -332,11 +330,8 @@ uint32_t text_blink_callback (void *userdata, SDL_TimerID timerID, Uint32 interv
     /* call again in 500 ms */
     return 500;
 }
-#pragma clang diagnostic pop
 
 // This is called at a frequency of 1/2 hz to update the cursor blink state
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunused-parameter"
 uint32_t cursor_blink_callback (void *userdata, SDL_TimerID timerID, Uint32 interval)
 {
     if (config.cursor_blink)
@@ -345,7 +340,6 @@ uint32_t cursor_blink_callback (void *userdata, SDL_TimerID timerID, Uint32 inte
     /* call again in 500 ms */
     return 500;
 }
-#pragma clang diagnostic pop
 
 /* render the framebuffer to the window */
 void render_framebuffer (void)

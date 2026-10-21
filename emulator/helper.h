@@ -3,9 +3,17 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <string.h>
 #include <sys/stat.h>
+
+/* Windows specific */
+#ifdef _WIN32
+    #include <windows.h>
+    #define realpath(N, R) _fullpath((R), (N), PATH_MAX)
+#endif
 
 typedef struct
 {

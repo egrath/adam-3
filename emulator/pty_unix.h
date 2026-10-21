@@ -16,9 +16,9 @@
 
 #include "commandline.h"
 #include "adm3a.h"
+#include "pty.h"
 
 #define MAX_SLAVE_NAME      64
-#define PTY_BUFFER_SIZE     1024
 
 /* private functions */
 static int     pty_master_open (char *slaveName, size_t len);
@@ -26,13 +26,7 @@ static pid_t   pty_fork (int *masterFd, struct termios *slaveTermios, const stru
 static void    enable_raw_mode (void);
 static void    disable_raw_mode (void);
 
-/* public functions */
-bool    child_has_data (void);
-int     child_read (uint8_t *buffer, int buffer_size);
-bool    child_write (uint8_t *buffer, int buffer_size);
-bool    child_alive (void);
-
-bool    start_process (void);
-void    stop_process (void);
+/* public functions are imported from pty.h because we have different implementations
+   on Windows and Macintosh / Linux */
 
 #endif

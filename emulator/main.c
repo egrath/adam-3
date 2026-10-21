@@ -1,11 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 #include <SDL3/SDL.h>
 
 #include "adm3a.h"
 #include "commandline.h"
-#include "pty_unix.h"
+#include "pty.h"
 #include "renderer.h"
 #include "config.h"
 
@@ -261,6 +262,7 @@ int main (int argc, char **argv)
         {
             switch (event.type)
             {
+                case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
                 case SDL_EVENT_QUIT:
                     run = false;
                     break;
@@ -290,7 +292,9 @@ int main (int argc, char **argv)
 
         /* read all incoming data from the child process and update our state accordingly */
         if (child_alive ())
+        {
             process_child_output ();
+        }
         else
             run = false;
 
