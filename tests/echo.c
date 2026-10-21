@@ -7,6 +7,10 @@ int main (int argc, char **argv)
 	fprintf (stdout, "Echo client\n");
 	fflush (stdout);
 
+    setvbuf(stdout, NULL, _IONBF, 0);
+    setvbuf(stderr, NULL, _IONBF, 0);
+    setvbuf(stdin, NULL, _IONBF, 0);	
+
 	for (;;)
 	{
 		fgets (buffer, 99, stdin);

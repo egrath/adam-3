@@ -110,7 +110,9 @@ bool handle_keydown (SDL_KeyboardEvent *event)
     else if (event->key == SDLK_TAB)
         send_ascii (ASCII_HT);
     else if (event->key == SDLK_RETURN)
+    {
         send_ascii (ASCII_CR);
+    }
     else if ((event->key >= SDLK_A && event->key <= SDLK_Z) ||
              (event->key >= SDLK_0 && event->key <= SDLK_9))
     {
@@ -216,8 +218,18 @@ bool process_child_output (void)
 
 /* from the terminal to the child process */
 bool process_child_input (uint8_t c)
-{
-    return child_write (&c, 1);
+{  
+    bool rc = child_write (&c, 1);
+
+#ifdef _WIN32
+    if (c == ASCII_CR)
+    {
+        c = ASCII_LF;
+        child_write (&c, 1);
+    }
+#endif
+
+    return rc;
 }
 
 int main (int argc, char **argv)

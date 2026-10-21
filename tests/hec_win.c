@@ -42,6 +42,9 @@ int main (int argc, char **argv)
 {
     int character = 0, count = 0;
 
+    setvbuf(stdout, NULL, _IONBF, 0);
+    setvbuf(stderr, NULL, _IONBF, 0);
+
     enable_raw_mode();
 
     while (character != 0x20) /* stop when space is received */

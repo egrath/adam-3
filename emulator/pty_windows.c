@@ -133,9 +133,12 @@ bool    start_process (void)
 	HANDLE child_stdin_read, child_stdout_write;
 	char *command;
 
+	setvbuf(stdout, NULL, _IONBF, 0);
+    setvbuf(stderr, NULL, _IONBF, 0);
+
 	SECURITY_ATTRIBUTES sa;
     sa.nLength = sizeof(SECURITY_ATTRIBUTES);
-    sa.bInheritHandle = TRUE; // Handles must be inheritable initially
+    sa.bInheritHandle = TRUE;
     sa.lpSecurityDescriptor = NULL;	
 
 	/* build the commandline to execute - CreateProcess expects a complete commandline unlike Linux/Mac */
