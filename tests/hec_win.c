@@ -53,6 +53,8 @@ int main (int argc, char **argv)
             fprintf (stdout,"\r\n");
         else
             fprintf (stdout, " ");
+
+        fflush (stdout);
     }
 
     disable_raw_mode();

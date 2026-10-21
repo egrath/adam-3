@@ -1,8 +1,8 @@
 #include "pty_windows.h"
 
 /* read and write handles to the child process */
-HANDLE output_read_side;	/* read output from the child */
-HANDLE input_write_side;	/* write input to the child */
+HANDLE output_read_side = NULL;	/* read output from the child */
+HANDLE input_write_side = NULL;	/* write input to the child */
 
 PROCESS_INFORMATION process;
 HPCON console;
@@ -40,6 +40,12 @@ int		child_data_available (void)
 	DWORD bytes_read;
 	char buffer[4096];
 
+	if (output_read_side == NULL || output_read_side == INVALID_HANDLE_VALUE)
+	{
+		fprintf (stdout, "read handle invalid\n");
+		return -1;
+	}
+
 	PeekNamedPipe(
 		output_read_side,
 		NULL,
@@ -63,9 +69,9 @@ bool    child_has_data (void)
 
 int     child_read (uint8_t *buffer, int buffer_size)
 {
-	int available, num_read;
+	int num_read;
 
-	if ((available = child_data_available ()) > 0)
+	if (child_data_available () > 0)
 	{
 		ReadFile (output_read_side,
 			buffer,
@@ -89,6 +95,9 @@ bool    child_write (uint8_t *buffer, int buffer_size)
 {
 	int num_written;
 
+	if (input_write_side == NULL || input_write_side == INVALID_HANDLE_VALUE)
+		return false;
+
 	WriteFile (
 		input_write_side, 
 		buffer, 
@@ -96,6 +105,11 @@ bool    child_write (uint8_t *buffer, int buffer_size)
 		(LPDWORD) &num_written,
 		NULL
 	);
+
+	if (num_written != buffer_size)
+	{
+		fprintf (stdout, "failed to write to child (%d != %d)\n", num_written, buffer_size);
+	}
 
 	return true;
 }
@@ -116,8 +130,13 @@ bool    child_alive (void)
 bool    start_process (void)
 {
 	HRESULT hr;
-	HANDLE inputReadSide, outputWriteSide;
+	HANDLE child_stdin_read, child_stdout_write;
 	char *command;
+
+	SECURITY_ATTRIBUTES sa;
+    sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+    sa.bInheritHandle = TRUE; // Handles must be inheritable initially
+    sa.lpSecurityDescriptor = NULL;	
 
 	/* build the commandline to execute - CreateProcess expects a complete commandline unlike Linux/Mac */
 	command = (char *) malloc (sizeof (char) * 256);
@@ -130,41 +149,31 @@ bool    start_process (void)
 		strcat (command, " ");
 	}
 
-	/* pipes and pseudoconsole */
-	if (!CreatePipe (&inputReadSide, &input_write_side, NULL, 0))
+	/* pipes */
+	if (!CreatePipe (&child_stdin_read, &input_write_side, &sa, 0))
 	{
 		fprintf (stdout, "pty-win: pipe creation failed\n");
 		return false;
 	}
+	SetHandleInformation(input_write_side, HANDLE_FLAG_INHERIT, 0);
 
-	if (!CreatePipe (&output_read_side, &outputWriteSide, NULL, 0))
+	if (!CreatePipe (&output_read_side, &child_stdout_write, &sa, 0))
 	{
 		fprintf (stdout, "pty-win: pipe creation failed\n");
 		return false;
 	}
-
-	hr = CreatePseudoConsole ((COORD) { 80, 24 }, inputReadSide, outputWriteSide, 0, &console);
-	if (FAILED (hr))
-	{
-		fprintf (stdout, "pty-win: pseudoconsole creation failed\n");
-		return false;
-	}
-
-	CloseHandle (inputReadSide);
-	CloseHandle (outputWriteSide);
+	SetHandleInformation(output_read_side, HANDLE_FLAG_INHERIT, 0);
 
 	/* prepare startup information */
-	STARTUPINFOEX si;
+	STARTUPINFO si;
 	ZeroMemory (&si, sizeof (si));
-	si.StartupInfo.cb = sizeof (STARTUPINFOEX);
+	si.cb = sizeof (si);
+	si.dwFlags |= STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
+    si.wShowWindow = SW_HIDE;
+    si.hStdInput  = child_stdin_read;   // Child reads from this
+    si.hStdOutput = child_stdout_write; // Child writes stdout here
+    si.hStdError  = child_stdout_write; // Child writes stderr here too	
 
-	size_t bytesRequired;
-	InitializeProcThreadAttributeList (NULL, 1, 0, &bytesRequired);
-	si.lpAttributeList = (PPROC_THREAD_ATTRIBUTE_LIST) HeapAlloc (GetProcessHeap (), 0, bytesRequired);
-	InitializeProcThreadAttributeList (si.lpAttributeList, 1, 0, &bytesRequired);
-	UpdateProcThreadAttribute (si.lpAttributeList,
-		0, PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE, console, sizeof (console), NULL, NULL);
-	
 	/* start the process */
 	ZeroMemory (&process, sizeof (process));
 
@@ -173,11 +182,11 @@ bool    start_process (void)
 		cmdline.processName,
 		NULL,
 		NULL,
-		FALSE,
-		EXTENDED_STARTUPINFO_PRESENT,
+		TRUE,
+		CREATE_NO_WINDOW,
 		NULL,
 		cmdline.processWorkingDir,
-		&si.StartupInfo,
+		&si,
 		&process
 	))
 	{
@@ -188,6 +197,9 @@ bool    start_process (void)
 	{
 		fprintf (stdout, "pty-win: process created, pid = %ld\n", process.dwProcessId);
 	}
+	
+	CloseHandle(child_stdin_read);
+    CloseHandle(child_stdout_write);	
 
 	return true;
 }
