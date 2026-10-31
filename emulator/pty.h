@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <sys/errno.h>
 
 #define PTY_BUFFER_SIZE     1024
 
@@ -19,3 +20,4 @@ bool    start_process (void);
 void    stop_process (void);
 
 #endif
+

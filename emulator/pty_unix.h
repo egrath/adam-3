@@ -9,7 +9,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
-#include <sys/errno.h>
 #include <signal.h>
 
 #include <string.h>
