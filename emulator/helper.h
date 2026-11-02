@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <libgen.h>
 
 /* Windows specific */
 #ifdef _WIN32
@@ -29,6 +30,6 @@ uint32_t rgba_to_uint32 (RGBAColor color);
 uint32_t str_to_uint32 (const char *str);
 bool str_to_bool (const char *str);
 
-char * build_absolute_path (char *relative);
+char * build_absolute_path (char *relative, bool strip);
 
 #endif

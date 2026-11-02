@@ -8,7 +8,7 @@ void config_set_default (void)
     config.auto_newline = true;
 
     config.fullscreen = true;
-    strcpy (config.xmodem_recv_path, build_absolute_path ("."));
+    strcpy (config.xmodem_recv_path, build_absolute_path (".", false));
     config.cursor_blink = false;
 
     config.terminal_foreground = uint32_to_rgba (0xFF81FF81);
@@ -58,14 +58,18 @@ bool config_init (void)
     FILE *configFile;
     char line[256];
     char *key, *value;
+    char *config_file_path;
 
     #ifdef DEBUG
     fprintf (stdout, "DEBUG: reading configuration file\n");
     #endif
 
+    config_file_path = (char *) malloc (sizeof (char) * 256);
+    sprintf (config_file_path, "%s/config.txt", program_dir);
+
     config_set_default ();
 
-    if ((configFile = fopen ("config.txt", "r")) == NULL)
+    if ((configFile = fopen (config_file_path, "r")) == NULL)
         return false;
 
     while (!feof (configFile))
@@ -101,9 +105,9 @@ bool config_init (void)
 
             if (strcmp (key, "xmodem_recv_path") == 0)
             {
-                char *path = build_absolute_path (value);
+                char *path = build_absolute_path (value, false);
                 if (path != NULL)
-                    strcpy (config.xmodem_recv_path, build_absolute_path (value));
+                    strcpy (config.xmodem_recv_path, build_absolute_path (value, false));
                 else
                     fprintf (stdout, "XMODEM path does not exist, falling back to default\n");
             }
@@ -113,6 +117,7 @@ bool config_init (void)
     print_config();
     
     fclose (configFile);
+    free (config_file_path);
 
     return true;
 }

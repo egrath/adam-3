@@ -39,7 +39,7 @@ bool parse_commandline (int argc, char **argv)
                     case 'w': /* working directory for child process */
                         if (argv[argIndex+1] != NULL)
                         {
-                            cmdline.processWorkingDir = build_absolute_path (argv[argIndex+1]);
+                            cmdline.processWorkingDir = build_absolute_path (argv[argIndex+1], false);
                             argIndex ++;
                         }
                         else
@@ -52,7 +52,7 @@ bool parse_commandline (int argc, char **argv)
                     case 'p':
                         if (argv[argIndex+1] != NULL)
                         {
-                            cmdline.processName = build_absolute_path (argv[argIndex+1]);
+                            cmdline.processName = build_absolute_path (argv[argIndex+1], false);
                             argIndex++;
                         }
                         else

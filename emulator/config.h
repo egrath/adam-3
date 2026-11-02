@@ -8,6 +8,8 @@
 
 #include "helper.h"
 
+extern char *program_dir;
+
 typedef struct
 {
     /* wrap cursor the next line after writing to column 80 */

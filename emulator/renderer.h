@@ -16,6 +16,8 @@
 #define FONT_WIDTH                  8
 #define FONT_HEIGHT                 16
 
+extern char *program_dir;
+
 bool render_initialize (void);
 void render_cleanup (void);
 

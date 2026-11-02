@@ -265,6 +265,9 @@ bool start_process (void)
         return false;
     }
 
+    fprintf (stdout, "before fork\n");
+    fprintf (stdout, "[%s][%s]\n", cmdline.processName, cmdline.processWorkingDir);
+
     /* Am I the child now? */
     if (childProcessPid == 0)
     {

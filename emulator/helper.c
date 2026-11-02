@@ -67,7 +67,7 @@ bool str_to_bool (const char *str)
    ## I/O related                                                        ##
    ######################################################################## */
 
-char * build_absolute_path (char *relative)
+char * build_absolute_path (char *relative, bool strip)
 {
     char *absolute;
     struct stat s;
@@ -90,6 +90,25 @@ char * build_absolute_path (char *relative)
     {
         fprintf (stderr, "file or directory [%s] does not exist (%s, %d)\n", absolute, __FILE__, __LINE__);
         return NULL;
+    }
+
+    /* strip any filenames from the path (if there are) */
+    if (((s.st_mode & S_IFDIR) != S_IFDIR) && strip)
+    {
+#ifdef DEBUG
+        fprintf (stdout, "build_absolute_path: [%s] is a file and strip=1, need to strip\n", absolute);
+#endif
+        if ((dirname_r (absolute, absolute)) == NULL)
+        {
+            fprintf (stdout, "dirname_r() failed (%s, %d)\n", __FILE__, __LINE__);
+            return NULL;
+        }
+    }
+    else
+    {
+#ifdef DEBUG
+        fprintf (stdout, "build_absolute_path: [%s] s a directory or strip=0\n", absolute);
+#endif
     }
 
     return absolute;

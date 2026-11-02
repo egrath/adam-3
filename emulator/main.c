@@ -17,6 +17,10 @@ bool process_child_output (void);
 
 static int run = true;
 
+/* we store our directory in here, as we want to read the font and config file from
+   this path, no matter where we are executed from */
+char *program_dir = NULL;
+
 /* #######################################################################
    Keyboard and Input handling
    ####################################################################### */
@@ -238,6 +242,8 @@ int main (int argc, char **argv)
 
     uint64_t start, end;
     double duration, left;
+
+    program_dir = build_absolute_path (argv[0], true);
 
     if (!config_init ())
         fprintf (stdout, "config.txt is missing, using defaults\n");
