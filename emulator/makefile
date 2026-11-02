@@ -4,7 +4,7 @@ LDFLAGS =
 
 # debugging and profiling
 DEBUG	= 0
-PROFILE = 1
+PROFILE = 0
 
 SRCDIR  = .
 BLDDIR  = build

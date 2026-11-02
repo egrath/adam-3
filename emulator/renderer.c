@@ -12,7 +12,10 @@ SDL_Window *window;
 SDL_Texture *framebuffer;
 SDL_FRect framebufferRenderRect;
 
-SDL_Texture *fontAtlas;     /* this stores our font */
+SDL_Texture *font_atlas;
+SDL_Texture *font_empty_cell_normal;
+SDL_Texture *font_empty_cell_inverse;
+SDL_Texture *font_empty_cell_underline;
 
 /* these are for keeping track if text with the blinking attribute
    (and if configured the cursor) should blink this time when rendering.
@@ -26,6 +29,9 @@ void render_cell (Cell *c, int row, int col)
 {
     SDL_FRect sourceRect, destRect;
     bool is_cursor = false;
+    bool inverse = false;
+    bool blinking = false;
+    bool underline = false;
     RGBAColor render_fg, render_bg;
 
     /* map to either the regular glyph or the graphic drawing one */
@@ -47,6 +53,15 @@ void render_cell (Cell *c, int row, int col)
     destRect.x = (float) ((col -1) * 8) + FRAMEBUFFER_BORDER_SIZE;
     destRect.y = (float) ((row -1) * 16) + FRAMEBUFFER_BORDER_SIZE;
 
+    /* current cell inverted attribute? */
+    inverse = ((c->state & CS_INVERSE) == CS_INVERSE);
+
+    /* current cell blinking attribute? */
+    blinking = ((c->state & CS_BLINK) == CS_BLINK);
+
+    /* current cell underline attribute? */
+    underline = ((c->state & CS_UNDERLINE) == CS_UNDERLINE);
+
     /* determine the colors we need to use */
     if (is_cursor && blink_cursor_state)
     {
@@ -60,7 +75,7 @@ void render_cell (Cell *c, int row, int col)
         render_fg = config.terminal_foreground;
         
         /* but, if we have reverse video, we switch that */
-        if ((c->state & CS_INVERSE) == CS_INVERSE)
+        if (inverse)
         {
             render_bg = config.terminal_foreground;
             render_fg = config.terminal_background;
@@ -68,27 +83,25 @@ void render_cell (Cell *c, int row, int col)
     }
 
     /* Draw the background of the cell */
-    SDL_SetRenderDrawColor (renderer, render_bg.r, render_bg.g, render_bg.b, 255);
-    SDL_RenderFillRect (renderer, &destRect);
+    if (inverse || (is_cursor && blink_cursor_state))
+        SDL_RenderTexture (renderer, font_empty_cell_inverse, NULL, &destRect);
+    else
+        SDL_RenderTexture (renderer, font_empty_cell_normal, NULL, &destRect);
 
     /* if cell has blinking attribute set, check if we should render it or not */
-    if ((c->state & CS_BLINK) == CS_BLINK && !blink_text_state)
+    if (blinking && !blink_text_state)
         return;
 
     /* Blit the (colored) glyph */
-    SDL_SetTextureColorMod (fontAtlas, render_fg.r, render_fg.g, render_fg.b);
-    SDL_RenderTexture (renderer, fontAtlas, &sourceRect, &destRect);
+    SDL_SetTextureColorMod (font_atlas, render_fg.r, render_fg.g, render_fg.b);
+    SDL_RenderTexture (renderer, font_atlas, &sourceRect, &destRect);
 
-    /* Underline if necessary */
-    if ((c->state & CS_UNDERLINE) == CS_UNDERLINE)
+    /* If the cell needs to have a underline, blit the underline glyph on top if it, 
+       but with modified colors according to inverse or normal */
+    if (underline)
     {
-        SDL_FRect barRect;
-        barRect.x = destRect.x;
-        barRect.y = destRect.y + destRect.h - 2;
-        barRect.w = destRect.w;
-        barRect.h = 1;
-        SDL_SetRenderDrawColor (renderer, render_fg.r, render_fg.g, render_fg.b, 255);
-        SDL_RenderFillRect (renderer, &barRect);
+        SDL_SetTextureColorMod (font_empty_cell_underline, render_fg.r, render_fg.g, render_fg.b);
+        SDL_RenderTexture (renderer, font_empty_cell_underline, NULL, &destRect);
     }
 }
 
@@ -133,7 +146,7 @@ void render_terminal (void)
     end = SDL_GetPerformanceCounter();
     duration = ((end-start) * 1000) / SDL_GetPerformanceFrequency();
 
-    fprintf (stdout, "render_terminal took: %ld ms\n", duration);
+    fprintf (stdout, "render_terminal took: %llu ms\n", duration);
 #endif
 }
 
@@ -218,12 +231,10 @@ bool render_initialize (void)
 
     SDL_StartTextInput (window);
 
-    /* build the font atlas */
-    if ((fontAtlas = build_fontatlas ()) == NULL)
+    /* create the font atlas */
+    if ((font_atlas = build_fontatlas ()) == NULL)
     {
-        #ifdef DEBUG
-        fprintf (stderr, "DEBUG: failed to build font atlas\n");
-        #endif
+        fprintf (stdout, "failed to build font atlas (%s, %d)\n", __FILE__, __LINE__);
         return false;
     }
 
@@ -295,6 +306,7 @@ SDL_Texture * build_fontatlas (void)
 
     SDL_LockTexture (atlas, NULL, (void *) &pixels, &pitch);
 
+    /* write the pixels into the texture */
     while (!feof(input))
     {
         fread (&c, 1, 1, input);
@@ -323,6 +335,36 @@ SDL_Texture * build_fontatlas (void)
     }
     SDL_SavePNG (s, "font.png");
     #endif
+
+    /* generate textures for empty cells. We don't want to call SDL_FillRect later on as this introduces
+       a massive performance penalty, instead we just blit empty textures */
+    font_empty_cell_normal = SDL_CreateTexture (renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET, 8, 16);
+    font_empty_cell_inverse = SDL_CreateTexture (renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET, 8, 16);
+    font_empty_cell_underline = SDL_CreateTexture (renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET, 8, 16);
+    
+    /* normal cell, "dark" background */
+    SDL_SetRenderTarget (renderer, font_empty_cell_normal);
+    SDL_SetRenderDrawColor (renderer, config.terminal_background.r, config.terminal_background.g, config.terminal_background.b, config.terminal_background.a);
+    SDL_RenderClear (renderer);
+
+    /* inverted cell, "light" background */
+    SDL_SetRenderTarget (renderer, font_empty_cell_inverse);
+    SDL_SetRenderDrawColor (renderer, config.terminal_foreground.r, config.terminal_foreground.g, config.terminal_foreground.b, config.terminal_foreground.a);
+    SDL_RenderClear (renderer);
+
+    /* special underline cell, will later blitted over the cell (with the proper color) if necessary */
+    SDL_SetRenderTarget (renderer, font_empty_cell_underline);
+    SDL_SetRenderDrawColor (renderer, 0, 0, 0, 0);
+    SDL_RenderClear (renderer);
+    SDL_FRect barRect;
+    barRect.x = 0;
+    barRect.y = 14;
+    barRect.w = 8;
+    barRect.h = 1;
+    SDL_SetRenderDrawColor (renderer, 255, 255, 255, 255);
+    SDL_RenderFillRect (renderer, &barRect);
+
+    SDL_SetRenderTarget (renderer, NULL);
 
     /* profiling */
     end = SDL_GetPerformanceCounter ();
