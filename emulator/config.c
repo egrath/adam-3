@@ -8,7 +8,7 @@ void config_set_default (void)
     config.auto_newline = true;
 
     config.fullscreen = true;
-    strcpy (config.xmodem_recv_path, build_absolute_path (".", false));
+    strcpy (config.xmodem_recv_path, build_absolute_path ("."));
     config.cursor_blink = false;
 
     config.terminal_foreground = uint32_to_rgba (0xFF81FF81);
@@ -105,9 +105,9 @@ bool config_init (void)
 
             if (strcmp (key, "xmodem_recv_path") == 0)
             {
-                char *path = build_absolute_path (value, false);
+                char *path = build_absolute_path (value);
                 if (path != NULL)
-                    strcpy (config.xmodem_recv_path, build_absolute_path (value, false));
+                    strcpy (config.xmodem_recv_path, build_absolute_path (value));
                 else
                     fprintf (stdout, "XMODEM path does not exist, falling back to default\n");
             }

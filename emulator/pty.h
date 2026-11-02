@@ -5,7 +5,11 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <sys/errno.h>
+#if (__HAIKU__)
+	#include <errno.h>
+#else
+	#include <sys/errno.h>
+#endif
 
 #define PTY_BUFFER_SIZE     1024
 

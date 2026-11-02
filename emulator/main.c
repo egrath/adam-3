@@ -243,7 +243,8 @@ int main (int argc, char **argv)
     uint64_t start, end;
     double duration, left;
 
-    program_dir = build_absolute_path (argv[0], true);
+    program_dir = get_directory_from_path (argv[0]);
+    fprintf (stdout, "my directory is: %s\n", program_dir);
 
     if (!config_init ())
         fprintf (stdout, "config.txt is missing, using defaults\n");

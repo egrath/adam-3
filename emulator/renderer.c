@@ -98,9 +98,11 @@ void render_terminal (void)
     int x, y;
     RGBAColor clearColor;
 
-    /* uint64_t start, end, duration;
+#ifdef PROFILE
+    uint64_t start, end, duration;
 
-    start = SDL_GetPerformanceCounter(); */
+    start = SDL_GetPerformanceCounter();
+#endif
 
     /* We only set the render target once before rendering a whopping
        1920 cells to the framebuffer. Otherwise we have a performance
@@ -122,18 +124,17 @@ void render_terminal (void)
         }
     }
 
-    //render_cursor ();
-
     /* Switch back the render target to the display */
     SDL_SetRenderTarget (renderer, NULL);
 
     /* profiling */
-    /*
+
+#ifdef PROFILE
     end = SDL_GetPerformanceCounter();
     duration = ((end-start) * 1000) / SDL_GetPerformanceFrequency();
 
-    fprintf (stdout, "render_terminal took: %lld ms\n", duration);
-    */
+    fprintf (stdout, "render_terminal took: %ld ms\n", duration);
+#endif
 }
 
 void render_print_info (void)
@@ -185,9 +186,14 @@ bool render_initialize (void)
     }
     SDL_ShowWindow (window);
 
-    if ((renderer = SDL_CreateGPURenderer (NULL, window)) == NULL)
+	/* try to create a GPU based renderer, but if that fails, create a software one */
+	renderer = SDL_CreateGPURenderer (NULL, window);
+	if (renderer == NULL)
+		renderer = SDL_CreateRenderer (window, NULL);
+	
+    if (renderer == NULL)
     {
-        fprintf (stderr, "SDL_CreateGPURenderer failed: %s (%s, %d)\n", SDL_GetError(), __FILE__, __LINE__);
+        fprintf (stderr, "failed to create renderer: %s (%s, %d)\n", SDL_GetError(), __FILE__, __LINE__);
         return false;
     }
 
@@ -280,6 +286,7 @@ SDL_Texture * build_fontatlas (void)
         exit (1);
     }
 
+	fprintf (stdout, "font atlas file: %s\n", font_file_path);
     if ((input = fopen(font_file_path,"rb")) == NULL)
     {
         fprintf (stderr, "failed to load font atlas file (%s, %d)\n", __FILE__, __LINE__);
@@ -322,7 +329,7 @@ SDL_Texture * build_fontatlas (void)
     duration = (end - start)  / ( SDL_GetPerformanceFrequency() / 1000);
     
     #ifdef DEBUG
-    fprintf (stdout, "DEBUG: loading of the font atlas took: %lld ms\n", duration);
+    fprintf (stdout, "DEBUG: loading of the font atlas took: %ld ms\n", duration);
     #endif
 
     return atlas;

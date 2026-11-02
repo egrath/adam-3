@@ -257,6 +257,9 @@ bool start_process (void)
         argv[i+1] = cmdline.processParameters[i];
     argv[cmdline.numProcessParameters+1] = NULL;
 
+    fprintf (stdout, "running program: %s\n", cmdline.processName);
+    fprintf (stdout, "working dir    : %s\n", cmdline.processWorkingDir);
+
     /* we are going to fork! */
     childProcessPid = pty_fork (&masterFd, NULL, &ws);
     if (childProcessPid == -1)
@@ -264,9 +267,6 @@ bool start_process (void)
         fprintf (stderr, "forking failed! (%s, %d)\n", __FILE__, __LINE__);
         return false;
     }
-
-    fprintf (stdout, "before fork\n");
-    fprintf (stdout, "[%s][%s]\n", cmdline.processName, cmdline.processWorkingDir);
 
     /* Am I the child now? */
     if (childProcessPid == 0)

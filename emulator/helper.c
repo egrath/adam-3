@@ -67,7 +67,7 @@ bool str_to_bool (const char *str)
    ## I/O related                                                        ##
    ######################################################################## */
 
-char * build_absolute_path (char *relative, bool strip)
+char * build_absolute_path (char *relative)
 {
     char *absolute;
     struct stat s;
@@ -92,24 +92,32 @@ char * build_absolute_path (char *relative, bool strip)
         return NULL;
     }
 
-    /* strip any filenames from the path (if there are) */
-    if (((s.st_mode & S_IFDIR) != S_IFDIR) && strip)
-    {
-#ifdef DEBUG
-        fprintf (stdout, "build_absolute_path: [%s] is a file and strip=1, need to strip\n", absolute);
-#endif
-        if ((dirname_r (absolute, absolute)) == NULL)
-        {
-            fprintf (stdout, "dirname_r() failed (%s, %d)\n", __FILE__, __LINE__);
-            return NULL;
-        }
-    }
-    else
-    {
-#ifdef DEBUG
-        fprintf (stdout, "build_absolute_path: [%s] s a directory or strip=0\n", absolute);
-#endif
-    }
-
     return absolute;
+}
+
+char * get_directory_from_path (char *path)
+{
+	char *p;
+	struct stat s;
+	
+	/* check if the given path exists at all */
+	if (stat (path, &s) != 0)
+	{
+		fprintf (stderr, "file [%s] does not exist (%s, %d)\n", path, __FILE__, __LINE__);
+		return NULL;
+	}
+	
+	/* check if it is a file */
+	if ((s.st_mode & S_IFDIR) == S_IFDIR)
+	{
+		fprintf (stderr, "given path [%s] is a path, not a file (%s, %d)\n",
+			path, __FILE__, __LINE__);
+		return NULL;
+	}
+	
+	/* good, we are dealing with a file */
+	p = (char *) malloc (sizeof (char) * 256);
+	sprintf (p, "%s", dirname (path));
+	
+	return p;
 }
