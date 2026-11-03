@@ -22,6 +22,9 @@ ifeq ($(PROFILE), 1)
 endif
 
 # operating system specific compiler flags
+# we keep all the options separate, as we want to have
+# more control over compile flags and object files
+# just in case we need it later on
 UNAME   = $(shell uname -s)
 ifeq ($(UNAME), Darwin)
 	CFLAGS    += $(shell pkg-config --cflags sdl3) 
@@ -34,6 +37,12 @@ ifeq ($(UNAME), Haiku)
 	LDFLAGS   += $(shell pkg-config --libs sdl3)
 	OBJS      += $(addprefix $(BLDDIR)/, pty_unix.o)
 
+endif
+
+ifeq ($(UNAME), Linux)
+	CFLAGS    += $(shell pkg-config --cflags sdl3)
+	LDFLAGS   += $(shell pkg-config --libs sdl3)
+	OBJS      += $(addprefix $(BLDDIR)/, pty_unix.o)
 endif
 
 ifneq ($(findstring MINGW64,$(UNAME)),)
