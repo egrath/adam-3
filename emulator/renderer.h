@@ -16,6 +16,17 @@
 #define FONT_WIDTH                  8
 #define FONT_HEIGHT                 16
 
+typedef enum
+{
+	RP_START = 0,
+	RP_BACKGROUND,
+	RP_TEXT,
+	RP_TEXT_INVERTED,
+	RP_UNDERLINE,
+	RP_UNDERLINE_INVERTED,
+	RP_END
+} renderpass_t;
+
 extern char *program_dir;
 
 bool render_initialize (void);
@@ -23,7 +34,7 @@ void render_cleanup (void);
 
 void render_set_fullscreen (bool fullscreen);
 
-void render_cell (Cell *c, int row, int col);
+void render_cell (Cell *c, int row, int col, renderpass_t pass);
 void render_terminal (void);
 void render_framebuffer (void);
 void update_framebuffer_rect (void);

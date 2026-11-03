@@ -23,9 +23,8 @@ SDL_Texture *font_empty_cell_underline;
 bool blink_text_state = true;
 bool blink_cursor_state = true;
 
-/* render a single cell (a position in the 80x24 terminal matrix) including all 
-   it's attributes to the framebuffer */
-void render_cell (Cell *c, int row, int col)
+/* renders a single cell, but only the attribute specified in the pass */
+void render_cell (Cell *c, int row, int col, renderpass_t pass)
 {
     SDL_FRect sourceRect, destRect;
     bool is_cursor = false;
@@ -33,7 +32,7 @@ void render_cell (Cell *c, int row, int col)
     bool blinking = false;
     bool underline = false;
     RGBAColor render_fg, render_bg;
-
+    
     /* map to either the regular glyph or the graphic drawing one */
     unsigned char glyph = ((c->state & CS_GRAPHICS) == CS_GRAPHICS) ? c->content+129 : c->content;
 
@@ -81,27 +80,38 @@ void render_cell (Cell *c, int row, int col)
             render_fg = config.terminal_background;
         }
     }
+    
+    /* check if we should immediately return because of the blinking state tells us that
+       it should not be visible right now */
+   	if (blinking && !blink_text_state && pass != RP_BACKGROUND)
+   	{
+   		/* the text is blinking and the blinking state (which changes every 0.5 secs)
+   		   is right now: Invisible */
+   		return;
+   	}
 
-    /* Draw the background of the cell */
-    if (inverse || (is_cursor && blink_cursor_state))
-        SDL_RenderTexture (renderer, font_empty_cell_inverse, NULL, &destRect);
-    else
-        SDL_RenderTexture (renderer, font_empty_cell_normal, NULL, &destRect);
-
-    /* if cell has blinking attribute set, check if we should render it or not */
-    if (blinking && !blink_text_state)
-        return;
-
-    /* Blit the (colored) glyph */
-    SDL_SetTextureColorMod (font_atlas, render_fg.r, render_fg.g, render_fg.b);
-    SDL_RenderTexture (renderer, font_atlas, &sourceRect, &destRect);
-
-    /* If the cell needs to have a underline, blit the underline glyph on top if it, 
-       but with modified colors according to inverse or normal */
-    if (underline)
+    if (pass == RP_BACKGROUND)
     {
-        SDL_SetTextureColorMod (font_empty_cell_underline, render_fg.r, render_fg.g, render_fg.b);
-        SDL_RenderTexture (renderer, font_empty_cell_underline, NULL, &destRect);
+    	/* PASS: Draw the background of the cell */
+	    if (inverse || (is_cursor && blink_cursor_state))
+	        SDL_RenderTexture (renderer, font_empty_cell_inverse, NULL, &destRect);
+	    else
+	        SDL_RenderTexture (renderer, font_empty_cell_normal, NULL, &destRect);
+    }
+    else if (pass == RP_TEXT)
+    {
+    	/* PASS: Draw the actual glyph */    	  	
+	    SDL_SetTextureColorMod (font_atlas, render_fg.r, render_fg.g, render_fg.b);
+	    SDL_RenderTexture (renderer, font_atlas, &sourceRect, &destRect);	
+    }
+    else if (pass == RP_UNDERLINE)
+    {
+    	/* PASS: Draw the underline */ 	
+	    if (underline)
+	    {
+	        SDL_SetTextureColorMod (font_empty_cell_underline, render_fg.r, render_fg.g, render_fg.b);
+	        SDL_RenderTexture (renderer, font_empty_cell_underline, NULL, &destRect);
+	    }
     }
 }
 
@@ -127,16 +137,25 @@ void render_terminal (void)
     SDL_SetRenderDrawColor (renderer, clearColor.r, clearColor.g, clearColor.b, clearColor.a);
     SDL_RenderClear (renderer);
 
-    /* draw all the symbols in the terminal matrix */
-    for (y = 0; y < TERM_ROWS; y ++)
-    {
-        for (x = 0; x < TERM_COLUMNS; x ++)
-        {
-            /* render a single cell. As always, we use logical coordinates for row, column */
-            render_cell (&(buffer[y][x]), y+1, x+1);
-        }
-    }
-
+	/* draw all the symbols in the terminal matrix in multiple passes. We need
+	   to use this more complicated approach, as drawing them all in one rush
+	   kills performance on some platforms which don't have a GPU accelerated
+	   backend */
+	for (renderpass_t pass = RP_START+1; pass < RP_END; pass ++)
+	{
+		for (int i = 0; i < (TERM_ROWS * TERM_COLUMNS); i ++)
+		{
+			/* calculate to coordinate of the cell we want to render */
+			y = (i / TERM_COLUMNS);
+			x = (i % TERM_COLUMNS);			
+			
+            /* render a single cell. Please note that the array containing our cells
+               is 0-indexed (e.g. column 0 .. 79, row 0 .. 23), but the row, column 
+               parameter is 1-indexed (1 .. 80 and 1 .. 24) */
+			render_cell (&(buffer[y][x]), y+1, x+1, pass);
+		}
+	}
+		
     /* Switch back the render target to the display */
     SDL_SetRenderTarget (renderer, NULL);
 
@@ -338,9 +357,11 @@ SDL_Texture * build_fontatlas (void)
 
     /* generate textures for empty cells. We don't want to call SDL_FillRect later on as this introduces
        a massive performance penalty, instead we just blit empty textures */
-    font_empty_cell_normal = SDL_CreateTexture (renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET, 8, 16);
-    font_empty_cell_inverse = SDL_CreateTexture (renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET, 8, 16);
-    font_empty_cell_underline = SDL_CreateTexture (renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET, 8, 16);
+    font_empty_cell_normal = SDL_CreateTexture (renderer, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_TARGET, 8, 16);
+    font_empty_cell_inverse = SDL_CreateTexture (renderer, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_TARGET, 8, 16);
+    font_empty_cell_underline = SDL_CreateTexture (renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, 8, 16);
+    SDL_SetTextureBlendMode (font_empty_cell_normal, SDL_BLENDMODE_NONE);
+    SDL_SetTextureBlendMode (font_empty_cell_inverse, SDL_BLENDMODE_NONE);
     
     /* normal cell, "dark" background */
     SDL_SetRenderTarget (renderer, font_empty_cell_normal);

@@ -16,6 +16,9 @@ bool parse_commandline (int argc, char **argv)
 {
     int argIndex, parIndex;
     int childParameterIndex = -1;
+    
+    cmdline.processWorkingDir = NULL;
+    cmdline.processName = NULL;
 
     cmdline.fullscreen = false;
 
@@ -86,7 +89,7 @@ bool parse_commandline (int argc, char **argv)
         cmdline.numProcessParameters = argc - childParameterIndex;
     }
 
-    /* sanity check */
+    /* sanity check */   
     if (cmdline.processName == NULL)
     {
         print_help ();
@@ -103,6 +106,6 @@ bool parse_commandline (int argc, char **argv)
         }
         #endif
     }
-
+    
     return true;
 }
