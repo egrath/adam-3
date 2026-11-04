@@ -13,7 +13,21 @@ if len(sys.argv)<3:
     print("usage: "+sys.argv[0]+" in-file out-file")
     sys.exit(1)
 else:
-    font = monobit.load(sys.argv[1])
+    if (sys.argv[1].endswith("png")):
+        print("loading font atlas ...")
+        font = monobit.load("kaypro84/kaypro84.png",
+                            format="image",
+                            grid=True,
+                            cell=(8,16),
+                            table_size=(16,16),
+                            padding=(0,0),
+                            margin=(0,0),
+                            first_codepoint=0,
+                            direction="left-to-right top-to-bottom",
+                            keep_empty=True)
+    else:
+        print ("loading font ...")
+        font = monobit.load(sys.argv[1])
     outfile = open(sys.argv[2],"wb")
 
 # sanity checks
