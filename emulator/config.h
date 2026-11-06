@@ -27,6 +27,9 @@ typedef struct
     /* cursor blinking? */
     bool cursor_blink;
 
+    /* font to use */
+    char terminal_font[256];
+
     /* directory for receiving XMODEM files */
     char xmodem_recv_path[256];
 }

@@ -299,14 +299,9 @@ SDL_Texture * build_fontatlas (void)
     uint32_t glyphPixel;
     unsigned char c;
 
-    char *font_file_path;
-
     uint64_t start, end, duration;
 
     start = SDL_GetPerformanceCounter ();
-
-    font_file_path = (char *) malloc (sizeof (char) * 256);
-    sprintf (font_file_path, "%s/font.dat", program_dir);
 
     /* we need a alpha channel, so we use a ARGB8888 surface */
     atlas = SDL_CreateTexture (renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 128, 256);
@@ -316,8 +311,8 @@ SDL_Texture * build_fontatlas (void)
         exit (1);
     }
 
-	fprintf (stdout, "font atlas file: %s\n", font_file_path);
-    if ((input = fopen(font_file_path,"rb")) == NULL)
+	fprintf (stdout, "font atlas file: %s\n", config.terminal_font);
+    if ((input = fopen(config.terminal_font,"rb")) == NULL)
     {
         fprintf (stderr, "failed to load font atlas file (%s, %d)\n", __FILE__, __LINE__);
         exit (1);
@@ -341,7 +336,6 @@ SDL_Texture * build_fontatlas (void)
     }
 
     fclose (input);
-    free (font_file_path);
     
     SDL_UnlockTexture (atlas);
     SDL_SetTextureBlendMode (atlas, SDL_BLENDMODE_BLEND);

@@ -304,9 +304,38 @@ char *s;
 	fprintf (stdout, "%cR", 0x1B);
 }
 
+void test11 (s)
+char *s;
+{
+	int i, col, row;
+	
+	cls ();
+	header (s);
+	
+	row = 5, col = 5;
+	
+	cursor (row,col);
+	for (i=32; i < 32+64; i++)
+	{
+		cursor (row,col);
+		
+		fprintf (stdout, "%03d=[", i);
+		fprintf (stdout, "%c", i);
+		fprintf (stdout, "]");
+		
+		row ++;
+		if (((i+1) % 8) == 0)
+		{
+			row = 5;
+			col += 8;
+		}
+	}	
+}
+
 
 main()
 {
+	/*
 	test01 ("cursor positioning");
 	wait ();
 	
@@ -335,4 +364,8 @@ main()
 
 	test10 ("ADM31 delete line");
 	wait ();
+	*/
+
+	test11 ("Character set");
+	test11 ();
 }

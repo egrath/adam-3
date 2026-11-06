@@ -15,12 +15,17 @@ void config_set_default (void)
     config.terminal_background = uint32_to_rgba (0xFF000000);
     config.cursor_foreground = uint32_to_rgba (0xFF000000);
     config.cursor_background = uint32_to_rgba (0xFFFFB003);
+
+    /* default font */
+    sprintf (config.terminal_font, "%s/font_sperry.dat", program_dir);
 }
 
 /* print current configuration */
 void print_config (void)
 {
     fprintf (stdout, "configuration:\n");
+
+    fprintf (stdout, "    terminal font: %s\n", config.terminal_font);
 
     fprintf (stdout, "    terminal foreground: r=%d, g=%d, b=%d\n", 
         config.terminal_foreground.r, 
@@ -89,6 +94,8 @@ bool config_init (void)
                 config.terminal_foreground = uint32_to_rgba (str_to_uint32 (value));
             if (strcmp (key, "terminal_background") == 0)
                 config.terminal_background = uint32_to_rgba (str_to_uint32 (value));
+            if (strcmp (key, "terminal_font") == 0)
+                sprintf (config.terminal_font, "%s/%s", program_dir, value);
             if (strcmp (key, "cursor_foreground") == 0)
                 config.cursor_foreground = uint32_to_rgba (str_to_uint32 (value));
             if (strcmp (key, "cursor_background") == 0)
